@@ -103,12 +103,12 @@ header p { margin: 0; color: var(--muted); max-width: 64ch; }
 .w .frost { position: absolute; inset: 0; backdrop-filter: blur(26px) saturate(1.6); -webkit-backdrop-filter: blur(26px) saturate(1.6); pointer-events: none; }
 .w .artbg { position: absolute; inset: -24px; background-size: cover; background-position: center; filter: blur(16px) saturate(1.35); pointer-events: none; }
 .w-medium .artbg {
-  -webkit-mask-image: linear-gradient(to right, #000 0%, rgba(0, 0, 0, 0.55) 42%, rgba(0, 0, 0, 0) 76%);
-  mask-image: linear-gradient(to right, #000 0%, rgba(0, 0, 0, 0.55) 42%, rgba(0, 0, 0, 0) 76%);
+  -webkit-mask-image: radial-gradient(ellipse 58% 80% at 55% 50%, #000 0%, rgba(0, 0, 0, 0.55) 50%, rgba(0, 0, 0, 0) 100%);
+  mask-image: radial-gradient(ellipse 58% 80% at 55% 50%, #000 0%, rgba(0, 0, 0, 0.55) 50%, rgba(0, 0, 0, 0) 100%);
 }
 .w-small .artbg {
-  -webkit-mask-image: radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0) 32%, rgba(0, 0, 0, 0.6) 62%, #000 100%);
-  mask-image: radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0) 32%, rgba(0, 0, 0, 0.6) 62%, #000 100%);
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 0%, rgba(0, 0, 0, 0.55) 42%, rgba(0, 0, 0, 0) 74%);
+  mask-image: radial-gradient(circle at 50% 50%, #000 0%, rgba(0, 0, 0, 0.55) 42%, rgba(0, 0, 0, 0) 74%);
 }
 .wbtn.plain { background: transparent; width: 34px; height: 34px; }
 .wbtn.plain svg { width: 19px; height: 19px; }
@@ -180,7 +180,7 @@ footer { color: var(--muted); font-size: 13px; }
       <ul>
         <li><strong>Fewer things.</strong> Title, artist, three controls and one record. No status line, no sleeve, no button circles.</li>
         <li><strong>Two anchors.</strong> Bold text pinned top-left, controls bottom-left, a large record on the right with a thin tonearm.</li>
-        <li><strong>Blurred cover behind glass.</strong> A soft, blurred copy of the album art fills the background, strongest at the outer edge and fading toward the record.</li>
+        <li><strong>White base, cover in the middle.</strong> The widget is white at its edges; a soft, blurred copy of the album art rises toward the centre. Dark graphite text, controls and tonearm.</li>
       </ul>
     </section>
   </div>
@@ -470,7 +470,7 @@ footer { color: var(--muted); font-size: 13px; }
 
     // 0. Recessed well in the base around the pivot. Light from the upper left: the
     //    upper-left rim casts a shadow into the well, the lower-right rim catches light.
-    const wellR = baseR * 1.45;
+    const wellR = classic ? baseR * 1.75 : R * 0.27;
     g.save();
     g.beginPath(); g.arc(P[0], P[1], wellR, 0, TAU); g.clip();
     g.fillStyle = o.light ? "rgba(0,0,0,0.06)" : "rgba(0,0,0,0.22)";
@@ -622,7 +622,7 @@ footer { color: var(--muted); font-size: 13px; }
     else if (v.style === "inscribed") drawInscribed(g, cx, cy, R * v.labelFrac, covers[state.track]);
     else { g.fillStyle = "#0b0b0d"; g.beginPath(); g.arc(cx, cy, Math.max(R * 0.03, 2), 0, TAU); g.fill(); }
     if (v.kind === "turntable") drawArm(g, W, cx, cy, R, state.arm, { variant: "classic", pivot: [0.86, 0.14], reach: [0.77, -0.28], lift: 0.42, offset: 0.38, tube: 0.05, light: state.light });
-    if (v.kind === "clean") drawArm(g, W, cx, cy, R, state.arm, { variant: "minimal", pivot: v.pivot, reach: [0.78, -0.16], lift: 0.35, offset: 0.38, tube: 0.036, light: state.light });
+    if (v.kind === "clean") drawArm(g, W, cx, cy, R, state.arm, { variant: "minimal", pivot: v.pivot, reach: [0.78, -0.16], lift: 0.35, offset: 0.38, tube: 0.036, light: true });
   }
 
   // ---------- Widget markup ----------
@@ -662,9 +662,9 @@ footer { color: var(--muted); font-size: 13px; }
     const glass = dir === "art";
     if (dir === "clean") {
       for (const w of [small, medium]) w.insertAdjacentHTML("afterbegin", '<div class="frost"></div><div class="artbg"></div>');
-      makeView(small, { kind: "clean", style: "inscribed", labelFrac: 0.66, box: 158, x: 0, y: 0, r: 0.4, cx: 0.47, cy: 0.5, pivot: [0.88, 0.12] });
+      makeView(small, { kind: "clean", style: "inscribed", labelFrac: 0.66, box: 158, x: 0, y: 0, r: 0.4, cx: 0.46, cy: 0.52, pivot: [0.83, 0.17] });
       small.insertAdjacentHTML("beforeend", `<div class="corner" style="left:4px;bottom:4px">${btn("play", false, true)}</div>`);
-      makeView(medium, { kind: "clean", style: "inscribed", labelFrac: 0.66, box: 152, x: 338 - 152 - 2, y: 3, r: 0.44, cx: 0.47, cy: 0.5, pivot: [0.9, 0.12] });
+      makeView(medium, { kind: "clean", style: "inscribed", labelFrac: 0.66, box: 152, x: 338 - 152 - 2, y: 3, r: 0.44, cx: 0.46, cy: 0.52, pivot: [0.85, 0.16] });
       medium.insertAdjacentHTML("beforeend", `<div class="textcol clean" style="left:16px;right:166px">
         <div class="title" data-f="title"></div><div class="artist" data-f="artist"></div>
         <div class="ctrls">${btn("prev", false, true)}${btn("play", false, true)}${btn("next", false, true)}</div></div>`);
@@ -696,11 +696,14 @@ footer { color: var(--muted); font-size: 13px; }
       let ctl = light ? "rgba(0,0,0,0.07)" : "rgba(255,255,255,0.14)";
       grain.style.backgroundImage = "none"; glow.style.background = "none";
       if (dir === "clean") {
-        bg.style.background = light ? "rgba(255,255,255,0.30)" : "rgba(18,18,22,0.30)";
+        const frost = w.querySelector(".frost");
+        if (frost) frost.style.background = "#f6f5f3";
         const artbg = w.querySelector(".artbg");
-        if (artbg) artbg.style.backgroundImage = `url(${coverURLs[state.track]})`;
-        fg = light ? "rgba(17,17,19,0.9)" : "rgba(255,255,255,0.97)";
-        fg2 = light ? "rgba(17,17,19,0.5)" : "rgba(255,255,255,0.62)";
+        if (artbg) { artbg.style.backgroundImage = `url(${coverURLs[state.track]})`; artbg.style.opacity = "0.9"; }
+        bg.style.background = "rgba(255,255,255,0.16)";
+        fg = "rgba(17,17,19,0.92)";
+        fg2 = "rgba(17,17,19,0.58)";
+        ctl = "rgba(0,0,0,0.07)";
       } else if (dir === "now") {
         bg.style.background = css(light ? pal.surfaceLight : pal.surfaceDark);
       } else if (dir === "turntable") {
