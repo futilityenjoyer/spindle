@@ -113,7 +113,7 @@ footer { color: var(--muted); font-size: 13px; }
 <div class="page">
   <header>
     <h1>Spindle Directions</h1>
-    <p>New looks for the widget next to what you have now, drawn at real iPhone size with a glossier record. The spin, the uncropped upright cover and the &#9198; &#9199; &#9197; buttons stay in every option. Open this page on your iPhone to judge the real size.</p>
+    <p>New looks for the widget next to what you have now, drawn at real iPhone size with a satin-black record and bigger album art. The spin, the uncropped upright cover and the &#9198; &#9199; &#9197; buttons stay in every option. Open this page on your iPhone to judge the real size.</p>
   </header>
 
   <div class="controls" role="toolbar" aria-label="Preview controls">
@@ -161,7 +161,7 @@ footer { color: var(--muted); font-size: 13px; }
       <div class="wall dark"><div class="scaler caps"></div></div>
       <ul>
         <li><strong>Colour from the cover.</strong> Three colours picked from the album art blend behind the record, with a soft glow and film grain.</li>
-        <li><strong>Lifted record.</strong> Stronger studio highlight and a shadow, so it floats above the colour.</li>
+        <li><strong>Lifted record.</strong> A soft shadow, so the matte record floats above the colour.</li>
         <li><strong>In a real widget:</strong> built from a mesh gradient and blurred shapes, all static and cheap. The cover itself is never blurred or cropped, which keeps Spotify's artwork rules.</li>
       </ul>
     </section>
@@ -299,7 +299,7 @@ footer { color: var(--muted); font-size: 13px; }
     const c = canvasOf(px), g = c.getContext("2d"), R = c.width / 2;
     g.translate(R, R);
     const body = g.createRadialGradient(0, 0, R * labelFrac, 0, 0, R);
-    body.addColorStop(0, "#09090b"); body.addColorStop(1, gloss ? "#141418" : "#111114");
+    body.addColorStop(0, "#111113"); body.addColorStop(1, "#18181b");
     g.fillStyle = body; g.beginPath(); g.arc(0, 0, R, 0, TAU); g.fill();
     const ps = R * (labelFrac + 0.065), pe = R * 0.948;
     const pitch = Math.max(R / 70, 1.1 * DPR * 0.5);
@@ -308,16 +308,16 @@ footer { color: var(--muted); font-size: 13px; }
     for (let r = ps; r < pe; r += pitch, i++) {
       if (gaps.some((gr) => Math.abs(r - gr) < pitch * 0.9)) continue;
       const loud = 0.5 + 0.5 * Math.sin(i * 0.71 + 3 * Math.sin(i * 0.13));
-      g.strokeStyle = `rgba(255,255,255,${(gloss ? 0.03 : 0.026) + (gloss ? 0.045 : 0.03) * loud})`;
+      g.strokeStyle = `rgba(255,255,255,${0.02 + 0.024 * loud})`;
       g.lineWidth = pitch * 0.42; g.beginPath(); g.arc(0, 0, r, 0, TAU); g.stroke();
-      if (gloss) { g.strokeStyle = "rgba(0,0,0,0.35)"; g.lineWidth = pitch * 0.3; g.beginPath(); g.arc(0, 0, r + pitch * 0.5, 0, TAU); g.stroke(); }
+      if (gloss) { g.strokeStyle = "rgba(0,0,0,0.18)"; g.lineWidth = pitch * 0.3; g.beginPath(); g.arc(0, 0, r + pitch * 0.5, 0, TAU); g.stroke(); }
     }
-    for (const gr of gaps) { g.strokeStyle = `rgba(255,255,255,${gloss ? 0.1 : 0.075})`; g.lineWidth = pitch * 0.5; g.beginPath(); g.arc(0, 0, gr, 0, TAU); g.stroke(); }
+    for (const gr of gaps) { g.strokeStyle = "rgba(255,255,255,0.055)"; g.lineWidth = pitch * 0.5; g.beginPath(); g.arc(0, 0, gr, 0, TAU); g.stroke(); }
     const ring = (r, col, w) => { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.arc(0, 0, r, 0, TAU); g.stroke(); };
     ring(R * (labelFrac + 0.047), "rgba(255,255,255,0.09)", pitch * 0.45);
     ring(R * (labelFrac + 0.008), "rgba(0,0,0,0.55)", R * 0.014);
     ring(R * 0.96, "rgba(255,255,255,0.06)", pitch * 0.45);
-    ring(R * 0.991, `rgba(255,255,255,${gloss ? 0.16 : 0.1})`, R * 0.018);
+    ring(R * 0.991, "rgba(255,255,255,0.07)", R * 0.014);
     ring(R - 0.5, "rgba(255,255,255,0.07)", 1);
     return c;
   }
@@ -335,11 +335,11 @@ footer { color: var(--muted); font-size: 13px; }
     g.beginPath(); g.arc(0, 0, R * 0.995, 0, TAU); g.arc(0, 0, R * (labelFrac + 0.01), 0, TAU, true); g.fill();
     // Band gaps catch the light more strongly.
     const ps = R * (labelFrac + 0.065), pe = R * 0.948;
-    g.strokeStyle = cg; g.globalAlpha = 0.9; g.lineWidth = Math.max(R / 90, 1);
+    g.strokeStyle = cg; g.globalAlpha = 0.45; g.lineWidth = Math.max(R / 90, 1);
     for (let k = 1; k <= 5; k++) { g.beginPath(); g.arc(0, 0, ps + (k * (pe - ps)) / 6, 0, TAU); g.stroke(); }
     g.globalAlpha = 1;
     // Rim light.
-    g.strokeStyle = css(lc, strength * 0.5); g.lineWidth = R * 0.012;
+    g.strokeStyle = css(lc, strength * 0.15); g.lineWidth = R * 0.008;
     g.beginPath(); g.arc(0, 0, R * 0.988, -2.6, -1.9); g.stroke();
     return c;
   }
@@ -390,7 +390,7 @@ footer { color: var(--muted); font-size: 13px; }
     const sheenTint = v.kind === "float" ? pal.accent.map((c) => 0.55 + c * 0.45) : null;
     v.tex = {
       disc: buildDisc(px, v.labelFrac, gloss),
-      sheen: buildSheen(px, v.labelFrac, v.kind === "flat" ? 0.22 : (v.kind === "clean" ? 0.34 : 0.48), sheenTint),
+      sheen: buildSheen(px, v.labelFrac, v.kind === "flat" ? 0.16 : (v.kind === "clean" ? 0.12 : 0.15), sheenTint),
       rot: buildRotating(px, v.labelFrac, v.kind === "clean" ? [0.95, 0.94, 0.92] : (v.style === "plain" ? pal.label : pal.edge)),
     };
     v.key = key;
@@ -635,20 +635,20 @@ footer { color: var(--muted); font-size: 13px; }
     const glass = dir === "art";
     if (dir === "clean") {
       for (const w of [small, medium]) w.insertAdjacentHTML("afterbegin", '<div class="frost"></div>');
-      makeView(small, { kind: "clean", style: "inscribed", labelFrac: 0.6, box: 158, x: 0, y: 0, r: 0.4, cx: 0.47, cy: 0.5, pivot: [0.88, 0.12] });
+      makeView(small, { kind: "clean", style: "inscribed", labelFrac: 0.72, box: 158, x: 0, y: 0, r: 0.4, cx: 0.47, cy: 0.5, pivot: [0.88, 0.12] });
       small.insertAdjacentHTML("beforeend", `<div class="corner" style="left:4px;bottom:4px">${btn("play", false, true)}</div>`);
-      makeView(medium, { kind: "clean", style: "inscribed", labelFrac: 0.6, box: 152, x: 338 - 152 - 2, y: 3, r: 0.44, cx: 0.47, cy: 0.5, pivot: [0.9, 0.12] });
+      makeView(medium, { kind: "clean", style: "inscribed", labelFrac: 0.72, box: 152, x: 338 - 152 - 2, y: 3, r: 0.44, cx: 0.47, cy: 0.5, pivot: [0.9, 0.12] });
       medium.insertAdjacentHTML("beforeend", `<div class="textcol clean" style="left:16px;right:166px">
         <div class="title" data-f="title"></div><div class="artist" data-f="artist"></div>
         <div class="ctrls">${btn("prev", false, true)}${btn("play", false, true)}${btn("next", false, true)}</div></div>`);
     } else if (dir === "turntable") {
-      makeView(small, { kind: "turntable", style: "inscribed", labelFrac: 0.6, box: 158, x: 0, y: 0, r: 0.345, cx: 0.44, cy: 0.52 });
+      makeView(small, { kind: "turntable", style: "inscribed", labelFrac: 0.72, box: 158, x: 0, y: 0, r: 0.345, cx: 0.44, cy: 0.52 });
       small.insertAdjacentHTML("beforeend", `<div class="corner" style="left:11px;bottom:11px">${btn("play", false)}</div>`);
-      makeView(medium, { kind: "turntable", style: "inscribed", labelFrac: 0.6, box: 158, x: 0, y: 0, r: 0.345, cx: 0.44, cy: 0.52 });
+      makeView(medium, { kind: "turntable", style: "inscribed", labelFrac: 0.72, box: 158, x: 0, y: 0, r: 0.345, cx: 0.44, cy: 0.52 });
       medium.insertAdjacentHTML("beforeend", textCol(170, false));
     } else {
       const kind = dir === "now" ? "flat" : "float";
-      makeView(small, { kind, style: "inscribed", labelFrac: 0.6, box: 158, x: 0, y: 0, r: kind === "flat" ? 0.38 : 0.36, cx: 0.5, cy: 0.5 });
+      makeView(small, { kind, style: "inscribed", labelFrac: 0.72, box: 158, x: 0, y: 0, r: kind === "flat" ? 0.38 : 0.36, cx: 0.5, cy: 0.5 });
       small.insertAdjacentHTML("beforeend", `<div class="corner" style="right:11px;bottom:11px">${btn("play", glass)}</div>`);
       makeView(medium, { kind, style: "plain", labelFrac: 0.5, box: 126, x: 16 + 48, y: 16, r: 0.5, cx: 0.5, cy: 0.5 });
       medium.insertAdjacentHTML("beforeend", `<img class="sleeve" alt="" style="left:16px;top:16px;width:126px;height:126px">` + textCol(204, glass));
