@@ -9,7 +9,7 @@ Last updated: 2026-11-12, M0 device testing.
 |---|---|
 | 1 Feasibility research | ✅ Done: [docs/FEASIBILITY.md](docs/FEASIBILITY.md) |
 | 2 Architecture & planning | ✅ Done; owner decisions recorded below |
-| 3 Core development | ✅ M0, ✅ M1 (2026-11-12). 🔨 **M2+M4 combined, written, not yet compiled or device-tested:** real vinyl (60% full-bleed art label, grooves, static sheen), artwork cache, queue-predicting timeline with last-seen stop, play/pause + skip buttons, Low Power Mode / Reduce Motion / Always-On handling. |
+| 3 Core development | ✅ M0, ✅ M1, ✅ **M2+M4** (2026-11-12): real vinyl with 60% full-bleed album art, artwork cache, queue-predicting timeline, play/pause + skip buttons. App is the setup utility (M3 scope covered by the Diagnostics/Spotify screen). **Next: M5 battery check + M6 QA of the 12 scenarios.** |
 | 4 Optimisation | Not started |
 | 5 Testing | Not started |
 | 6 Deployment docs | Install guide: [docs/INSTALL.md](docs/INSTALL.md) (iloader) |
@@ -140,5 +140,14 @@ See [docs/INSTALL.md](docs/INSTALL.md). In short: push to GitHub → the Actions
 | Connect Spotify (PKCE via GitHub Pages return page) | ✅ Signed in and returned to the app |
 | App shows current track | ✅ |
 | Widget shows track and reflects playing/paused | ✅ (owner report: "It works!") |
+
+### M2+M4 device test (2026-11-12): same phone, iloader install
+
+| Check | Result |
+|---|---|
+| First CI build | ❌ Type-checker timeout in the groove drawing (`VinylDisc.swift`); fixed in d525828 |
+| Second CI build + install | ✅ |
+| Vinyl with album art, buttons, spinning | ✅ Owner report: "it works!" |
+| Detailed timing checks (natural track boundary, ⏭ latency, pause from inside Spotify) | Not individually reported; covered by the M6 scenario run |
 
 The 12-scenario matrix will live here from M3 onward.
