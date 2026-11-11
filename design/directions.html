@@ -180,7 +180,7 @@ footer { color: var(--muted); font-size: 13px; }
       <ul>
         <li><strong>Fewer things.</strong> Title, artist, three controls and one record. No status line, no sleeve, no button circles.</li>
         <li><strong>Two anchors.</strong> Bold text pinned top-left, controls bottom-left, a large record on the right with a silver tonearm.</li>
-        <li><strong>Silver base, cover in the middle.</strong> Brushed silver, more opaque toward the edges; a soft, blurred copy of the album art rises toward the centre. Dark graphite text and controls; a silver tonearm with a dark pivot block and headshell.</li>
+        <li><strong>Silver base, cover in the middle.</strong> Smooth silver, more opaque toward the edges; a soft, blurred copy of the album art rises toward the centre. Dark graphite text and controls; a silver tonearm with a dark pivot block and headshell.</li>
       </ul>
     </section>
   </div>
@@ -650,7 +650,7 @@ footer { color: var(--muted); font-size: 13px; }
     else if (v.style === "inscribed") drawInscribed(g, cx, cy, R * v.labelFrac, covers[state.track]);
     else { g.fillStyle = "#0b0b0d"; g.beginPath(); g.arc(cx, cy, Math.max(R * 0.03, 2), 0, TAU); g.fill(); }
     if (v.kind === "turntable") drawArm(g, W, cx, cy, R, state.arm, { variant: "classic", pivot: [0.86, 0.14], reach: [0.77, -0.28], lift: 0.42, offset: 0.38, tube: 0.05, light: state.light });
-    if (v.kind === "clean") drawArm(g, W, cx, cy, R, state.arm, { variant: "silver", pivot: v.pivot, reach: [0.415, 0.719], lift: 0.4, offset: 0.24, tube: 0.05, light: true });
+    if (v.kind === "clean") drawArm(g, W, cx, cy, R, state.arm, { variant: "silver", pivot: v.pivot, reach: [0.587, 0.587], lift: 0.4, offset: 0.24, tube: 0.05, light: true });
   }
 
   // ---------- Widget markup ----------
@@ -726,7 +726,6 @@ footer { color: var(--muted); font-size: 13px; }
       if (dir === "clean") {
         const frost = w.querySelector(".frost");
         if (frost) frost.style.background =
-          "repeating-linear-gradient(90deg, rgba(255,255,255,0.22) 0 1px, rgba(0,0,0,0.025) 1px 2px, rgba(255,255,255,0) 2px 3px), " +
           "linear-gradient(125deg, #e4e6e9 0%, #c3c7cc 28%, #f3f4f6 50%, #b9bdc3 74%, #dcdee2 100%)";
         const artbg = w.querySelector(".artbg");
         if (artbg) { artbg.style.backgroundImage = `url(${coverURLs[state.track]})`; artbg.style.opacity = "0.9"; }
