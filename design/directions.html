@@ -188,7 +188,7 @@ footer { color: var(--muted); font-size: 13px; }
         <li><strong>Fewer things.</strong> A faint "Now Playing" (or "Paused"), title, artist, three controls and one record. No sleeve, no button circles.</li>
         <li><strong>Two anchors.</strong> Bold text pinned top-left, controls bottom-left, a large record on the right with a silver tonearm.</li>
         <li><strong>Silver base, cover in the middle.</strong> Smooth silver, more opaque toward the edges; a soft, blurred copy of the album art rises toward the centre. Dark graphite text and controls; a silver tonearm with a dark pivot block and headshell.</li>
-        <li><strong>Medium &middot; no buttons.</strong> Same record and arm on a deep colour from the cover, with the blurred cover in the middle. Faint "Now Playing" and a small refresh button at the top; artist and a larger title at the bottom.</li>
+        <li><strong>Medium &middot; no buttons.</strong> Same record and arm on a deep colour from the cover, with the blurred cover in the middle. Faint "Now Playing" at the top; artist and a larger title at the bottom; a small refresh button in the bottom-right corner.</li>
       </ul>
     </section>
   </div>
@@ -715,8 +715,9 @@ footer { color: var(--muted); font-size: 13px; }
       medium2.insertAdjacentHTML("afterbegin", '<div class="frost"></div><div class="artbg"></div>');
       makeView(medium2, { kind: "clean", style: "inscribed", labelFrac: 0.66, box: 152, x: 338 - 152 - 2, y: 3, r: 0.44, cx: 0.46, cy: 0.52, pivot: [0.85, 0.16], armLight: false });
       medium2.insertAdjacentHTML("beforeend", `<div class="textcol tint" style="left:16px;right:166px">
-        <div class="toprow"><div class="eyebrow" data-f="eyebrow">Now Playing</div>${refreshBtn()}</div>
-        <div class="artist" data-f="artist"></div><div class="title" data-f="title"></div></div>`);
+        <div class="toprow"><div class="eyebrow" data-f="eyebrow">Now Playing</div></div>
+        <div class="artist" data-f="artist"></div><div class="title" data-f="title"></div></div>
+        <div class="corner" style="right:8px;bottom:8px">${refreshBtn()}</div>`);
     } else if (dir === "turntable") {
       makeView(small, { kind: "turntable", style: "inscribed", labelFrac: 0.66, box: 158, x: 0, y: 0, r: 0.345, cx: 0.44, cy: 0.52 });
       small.insertAdjacentHTML("beforeend", `<div class="corner" style="left:11px;bottom:11px">${btn("play", false)}</div>`);
