@@ -41,3 +41,16 @@ struct SkipTrackIntent: AppIntent {
         return .result()
     }
 }
+
+struct PreviousTrackIntent: AppIntent {
+    static var title: LocalizedStringResource = "Previous Track"
+    static var description = IntentDescription("Goes back to the previous track on Spotify.")
+
+    init() {}
+
+    func perform() async throws -> some IntentResult {
+        try? await SpotifyService.perform(.previous)
+        try? await Task.sleep(nanoseconds: 800_000_000)
+        return .result()
+    }
+}

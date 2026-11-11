@@ -71,7 +71,7 @@ public enum SpotifyAPI {
     // MARK: Player control (Premium only; used by the widget's buttons)
 
     public enum PlayerCommand: Sendable {
-        case play, pause, next
+        case play, pause, next, previous
     }
 
     public static func commandRequest(_ command: PlayerCommand, accessToken: String) -> URLRequest {
@@ -81,6 +81,7 @@ public enum SpotifyAPI {
         case .play: (method, path) = ("PUT", "me/player/play")
         case .pause: (method, path) = ("PUT", "me/player/pause")
         case .next: (method, path) = ("POST", "me/player/next")
+        case .previous: (method, path) = ("POST", "me/player/previous")
         }
         var request = playerRequest(path: path, accessToken: accessToken, query: [])
         request.httpMethod = method

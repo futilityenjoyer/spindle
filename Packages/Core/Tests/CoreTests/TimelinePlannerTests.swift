@@ -95,5 +95,8 @@ final class TimelinePlannerTests: XCTestCase {
         let next = SpotifyAPI.commandRequest(.next, accessToken: "t")
         XCTAssertEqual(next.httpMethod, "POST")
         XCTAssertEqual(next.url?.path, "/v1/me/player/next")
+        let previous = SpotifyAPI.commandRequest(.previous, accessToken: "t")
+        XCTAssertEqual(previous.httpMethod, "POST")
+        XCTAssertEqual(previous.url?.path, "/v1/me/player/previous")
     }
 }

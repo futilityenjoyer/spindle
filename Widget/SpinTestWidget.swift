@@ -4,8 +4,9 @@ import SwiftUI
 import ClockHandKit
 import Core
 
-// The Spindle widget. The kind stays "SpinTest" (its M0 name) so widgets already on
-// the Home Screen keep working after updates.
+// The Spindle widget (design spec §5, Sleeve medium + Inscribed small).
+// The kind stays "SpinTest" (its M0 name) so widgets already on the Home Screen keep working.
+// Keep view expressions small and explicitly typed (see the note in VinylRecord.swift).
 
 /// What one timeline entry shows.
 enum WidgetDisplay {
@@ -38,13 +39,22 @@ enum WidgetDisplay {
         return false
     }
 
-    /// Play/pause and skip only make sense when we know what's playing.
+    var isPaused: Bool {
+        if case .item(_, false, false) = self { return true }
+        return false
+    }
+
     var showsControls: Bool {
         switch self {
         case .item(_, _, let isStale): return !isStale
         case .advertisement: return true
         default: return false
         }
+    }
+
+    var isDimmed: Bool {
+        if case .notConnected = self { return true }
+        return false
     }
 
     var title: String {
@@ -60,10 +70,12 @@ enum WidgetDisplay {
 
     var subtitle: String {
         switch self {
-        case .notConnected: return "Open Spindle to sign in"
+        case .notConnected: return "Tap to sign in"
+        case .idle: return "Play something in Spotify"
         case .item(let item, _, _): return item.subtitle
+        case .advertisement: return "Spotify"
         case .problem(let message): return message
-        default: return ""
+        case .waitingForUnlock: return ""
         }
     }
 }
@@ -71,17 +83,18 @@ enum WidgetDisplay {
 struct SpindleEntry: TimelineEntry {
     let date: Date
     let display: WidgetDisplay
-    let label: CGImage?
+    let art: CGImage?
+    let palette: ArtPalette
     let fetchedAt: Date?
     let lowPower: Bool
 }
 
 struct SpindleProvider: TimelineProvider {
-    /// Label art is decoded at this size (≈ the largest label × 3 px/pt, StandBy included).
-    private let labelPixels = 360
+    /// Covers are decoded at this size (≈ largest cover × 3 px/pt, StandBy included).
+    private let artPixels = 400
 
     func placeholder(in context: Context) -> SpindleEntry {
-        SpindleEntry(date: Date(), display: .idle, label: nil, fetchedAt: nil, lowPower: false)
+        SpindleEntry(date: Date(), display: .idle, art: nil, palette: .neutral, fetchedAt: nil, lowPower: false)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (SpindleEntry) -> Void) {
@@ -94,10 +107,8 @@ struct SpindleProvider: TimelineProvider {
                 completion(placeholder(in: context))
                 return
             }
-            let images = await ArtworkCache.images(for: first.item.map { [$0] } ?? [], maxPixelSize: labelPixels, download: false)
-            completion(SpindleEntry(date: Date(), display: WidgetDisplay(first),
-                                    label: first.item.flatMap { ArtworkCache.remoteURL(for: $0) }.flatMap { images[$0] },
-                                    fetchedAt: snapshot.fetchedAt, lowPower: lowPower))
+            let covers = await Covers.load(for: [first], pixels: artPixels, download: false)
+            completion(Self.entry(for: first, covers: covers, fetchedAt: snapshot.fetchedAt, lowPower: lowPower))
         }
     }
 
@@ -112,24 +123,30 @@ struct SpindleProvider: TimelineProvider {
                 snapshot = try await Self.loadSnapshot()
             } catch {
                 let (display, reload) = Self.failureDisplay(error, now: now)
-                let entry = SpindleEntry(date: now, display: display, label: nil, fetchedAt: nil, lowPower: lowPower)
+                let entry = SpindleEntry(date: now, display: display, art: nil, palette: .neutral,
+                                         fetchedAt: nil, lowPower: lowPower)
                 completion(Timeline(entries: [entry], policy: reload))
                 return
             }
 
-            let plan = TimelinePlanner.plan(snapshot, now: now, lowPower: lowPower)
+            let plan = TimelinePlanner.plan(snapshot, now: now, lowPower: lowPower,
+                                            settings: SharedSettings.plannerSettings)
             // Covers for every planned track, downloaded in one burst now so later
             // entries render without network access.
-            let images = await ArtworkCache.images(for: plan.entries.compactMap(\.item), maxPixelSize: labelPixels)
-            let entries = plan.entries.map { planned in
-                SpindleEntry(date: planned.date,
-                             display: WidgetDisplay(planned),
-                             label: planned.item.flatMap { ArtworkCache.remoteURL(for: $0) }.flatMap { images[$0] },
-                             fetchedAt: snapshot.fetchedAt,
-                             lowPower: lowPower)
+            let covers = await Covers.load(for: plan.entries, pixels: artPixels, download: true)
+            let entries: [SpindleEntry] = plan.entries.map { (planned: PlannedEntry) -> SpindleEntry in
+                Self.entry(for: planned, covers: covers, fetchedAt: snapshot.fetchedAt, lowPower: lowPower)
             }
             completion(Timeline(entries: entries, policy: .after(plan.reloadAt)))
         }
+    }
+
+    private static func entry(for planned: PlannedEntry, covers: Covers, fetchedAt: Date, lowPower: Bool) -> SpindleEntry {
+        let remote: URL? = planned.item.flatMap { ArtworkCache.remoteURL(for: $0) }
+        let art: CGImage? = remote.flatMap { covers.images[$0] }
+        let palette: ArtPalette = remote.flatMap { covers.palettes[$0] } ?? .neutral
+        return SpindleEntry(date: planned.date, display: WidgetDisplay(planned), art: art,
+                            palette: palette, fetchedAt: fetchedAt, lowPower: lowPower)
     }
 
     /// Reuse a fetch under a minute old (by the app or another widget); else one burst to Spotify.
@@ -161,137 +178,240 @@ struct SpindleProvider: TimelineProvider {
     }
 }
 
+/// Decoded covers and their palettes, keyed by Spotify image URL.
+struct Covers {
+    var images: [URL: CGImage] = [:]
+    var palettes: [URL: ArtPalette] = [:]
+
+    static func load(for entries: [PlannedEntry], pixels: Int, download: Bool) async -> Covers {
+        let items: [PlayableItem] = entries.compactMap { $0.item }
+        var covers = Covers()
+        covers.images = await ArtworkCache.images(for: items, maxPixelSize: pixels, download: download)
+        for (url, image) in covers.images {
+            covers.palettes[url] = ArtPaletteExtractor.palette(from: image)
+        }
+        return covers
+    }
+}
+
 struct SpinTestWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "SpinTest", provider: SpindleProvider()) { entry in
+        StaticConfiguration(kind: "SpinTest", provider: SpindleProvider()) { (entry: SpindleEntry) in
             SpindleWidgetView(entry: entry)
         }
         .configurationDisplayName("Spindle")
         .description("A spinning record for what's playing on Spotify.")
         .supportedFamilies([.systemSmall, .systemMedium])
+        .contentMarginsDisabled()   // each layout applies the spec's own margins
     }
 }
 
-/// A record that turns at 16⅔ RPM (3.6 s per turn) while `spinning`, under a static sheen.
-/// The angle comes from the clock, so it doesn't jump when the track or timeline changes.
-struct RecordView: View {
-    let label: CGImage?
+/// Turns at 16⅔ RPM (3.6 s per turn) while `spinning`. The angle comes from the clock,
+/// so it doesn't jump when the track or the timeline changes.
+struct SpinEffect: ViewModifier {
     let spinning: Bool
 
-    var body: some View {
-        ZStack {
-            disc
-            VinylSheen()
-        }
-    }
-
     @ViewBuilder
-    private var disc: some View {
+    func body(content: Content) -> some View {
         if spinning {
-            VinylDisc(label: label).clockHandRotationEffect(period: .custom(3.6))
+            content.clockHandRotationEffect(period: .custom(3.6))
         } else {
-            VinylDisc(label: label)
+            content
         }
     }
 }
 
 struct SpindleWidgetView: View {
     @Environment(\.widgetFamily) private var family
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.isLuminanceReduced) private var isLuminanceReduced
     let entry: SpindleEntry
 
     /// Spin only while playing on fresh data, and never in Low Power Mode, Always-On,
-    /// or with Reduce Motion (where the effect would tick or distract).
+    /// or with Reduce Motion.
     private var spinning: Bool {
         entry.display.isPlaying && !entry.display.isStale && !entry.lowPower && !reduceMotion && !isLuminanceReduced
     }
 
     var body: some View {
-        content
-            .containerBackground(for: .widget) {
-                Color(red: 0.06, green: 0.06, blue: 0.07)
-            }
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        switch family {
-        case .systemMedium:
-            HStack(spacing: 14) {
-                RecordView(label: entry.label, spinning: spinning)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(entry.display.title)
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .lineLimit(2)
-                    if !entry.display.subtitle.isEmpty {
-                        Text(entry.display.subtitle)
-                            .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.65))
-                            .lineLimit(2)
-                    }
-                    Spacer(minLength: 4)
-                    HStack(alignment: .center, spacing: 10) {
-                        if entry.display.showsControls {
-                            playPauseButton
-                            skipButton
-                        }
-                        Spacer(minLength: 0)
-                        statusLine
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        default:
-            RecordView(label: entry.label, spinning: spinning)
-                .overlay(alignment: .bottomTrailing) {
-                    if entry.display.showsControls {
-                        playPauseButton.offset(x: 6, y: 6)
-                    }
-                }
-        }
-    }
-
-    private var playPauseButton: some View {
-        Button(intent: TogglePlaybackIntent(isPlaying: entry.display.isPlaying)) {
-            controlIcon(entry.display.isPlaying ? "pause.fill" : "play.fill")
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var skipButton: some View {
-        Button(intent: SkipTrackIntent()) {
-            controlIcon("forward.fill")
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func controlIcon(_ name: String) -> some View {
-        Image(systemName: name)
-            .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(.white)
-            .frame(width: 32, height: 32)
-            .background(Circle().fill(Color(white: 0.2).opacity(0.85)))
-    }
-
-    @ViewBuilder
-    private var statusLine: some View {
+        let ink = WidgetInk(palette: entry.palette, scheme: colorScheme)
         Group {
-            if AppGroup.id == nil {
-                Text("No shared folder")
-            } else if entry.display.isStale, let fetchedAt = entry.fetchedAt {
-                Text("Last seen \(fetchedAt, style: .time)")
-            } else if case .item(_, false, _) = entry.display {
-                Text("Paused")
-            } else if entry.lowPower && entry.display.isPlaying {
-                Text("Low Power")
+            if family == .systemMedium {
+                MediumSleeveLayout(entry: entry, ink: ink, spinning: spinning)
             } else {
-                EmptyView()
+                SmallRecordLayout(entry: entry, ink: ink, spinning: spinning)
             }
         }
-        .font(.caption2.weight(.medium))
-        .foregroundStyle(.white.opacity(0.5))
+        .containerBackground(for: .widget) {
+            ink.surface
+        }
+    }
+}
+
+// MARK: - Small: Inscribed record (spec §5.2)
+
+struct SmallRecordLayout: View {
+    let entry: SpindleEntry
+    let ink: WidgetInk
+    let spinning: Bool
+
+    var body: some View {
+        ZStack {
+            VinylRecord(style: .inscribed, art: entry.art, palette: entry.palette,
+                        labelFraction: 0.6, rotation: SpinEffect(spinning: spinning))
+                .padding(19)   // disc ≈ 76% of the widget
+                .opacity(entry.display.isDimmed ? 0.38 : 1)
+
+            VStack {
+                Spacer(minLength: 0)
+                HStack(alignment: .bottom) {
+                    if !entry.display.isPlaying || entry.display.isStale {
+                        StatusLabel(entry: entry, ink: ink)
+                    }
+                    Spacer(minLength: 0)
+                    if entry.display.showsControls {
+                        PlayPauseButton(isPlaying: entry.display.isPlaying, ink: ink)
+                    }
+                }
+            }
+            .padding(11)
+        }
+    }
+}
+
+// MARK: - Medium: Sleeve (spec §5.4)
+
+struct MediumSleeveLayout: View {
+    let entry: SpindleEntry
+    let ink: WidgetInk
+    let spinning: Bool
+
+    var body: some View {
+        GeometryReader { (geo: GeometryProxy) in
+            let side: CGFloat = geo.size.height
+            let peek: CGFloat = side * 0.38
+            HStack(alignment: .center, spacing: 14) {
+                ZStack(alignment: .leading) {
+                    VinylRecord(style: .plain, art: nil, palette: entry.palette,
+                                labelFraction: 0.5, rotation: SpinEffect(spinning: spinning))
+                        .frame(width: side, height: side)
+                        .offset(x: peek)
+                        .opacity(entry.display.isDimmed ? 0.38 : 1)
+                    CoverArt(art: entry.art, cornerRadius: 4)
+                        .frame(width: side, height: side)
+                        .shadow(color: Color.black.opacity(0.35), radius: 3.5, x: 2, y: 1)
+                }
+                .frame(width: side + peek, height: side, alignment: .leading)
+
+                TextColumn(entry: entry, ink: ink)
+            }
+        }
+        .padding(16)
+    }
+}
+
+struct TextColumn: View {
+    let entry: SpindleEntry
+    let ink: WidgetInk
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(entry.display.title)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(ink.primary)
+                .lineLimit(2)
+            if !entry.display.subtitle.isEmpty {
+                Text(entry.display.subtitle)
+                    .font(.system(size: 13))
+                    .foregroundStyle(ink.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 4)
+            StatusLabel(entry: entry, ink: ink)
+            if entry.display.showsControls {
+                HStack(spacing: 8) {
+                    ControlButton(symbol: "backward.fill", intent: PreviousTrackIntent(), ink: ink)
+                    PlayPauseButton(isPlaying: entry.display.isPlaying, ink: ink)
+                    ControlButton(symbol: "forward.fill", intent: SkipTrackIntent(), ink: ink)
+                }
+                .padding(.top, 4)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+}
+
+// MARK: - Shared pieces
+
+struct StatusLabel: View {
+    let entry: SpindleEntry
+    let ink: WidgetInk
+
+    var body: some View {
+        HStack(spacing: 4) {
+            icon
+            text
+        }
+        .font(.system(size: 11, weight: .semibold, design: .rounded))
+        .foregroundStyle(ink.secondary)
         .lineLimit(1)
+    }
+
+    @ViewBuilder
+    private var icon: some View {
+        if AppGroup.id == nil || entry.display.isStale {
+            Circle().fill(Color.orange).frame(width: 6, height: 6)
+        } else if entry.display.isPlaying {
+            Image(systemName: "waveform").font(.system(size: 9, weight: .bold))
+        } else if entry.display.isPaused {
+            Image(systemName: "pause.fill").font(.system(size: 9, weight: .bold))
+        } else {
+            Circle().fill(ink.secondary).frame(width: 5, height: 5)
+        }
+    }
+
+    @ViewBuilder
+    private var text: some View {
+        if AppGroup.id == nil {
+            Text("No shared folder")
+        } else if entry.display.isStale, let fetchedAt = entry.fetchedAt {
+            Text("Last seen \(fetchedAt, style: .time)")
+        } else if entry.display.isPlaying {
+            Text(entry.lowPower ? "Playing · Low Power" : "Playing")
+        } else if entry.display.isPaused {
+            Text("Paused")
+        } else if entry.display.isDimmed {
+            Text("Signed out")
+        } else {
+            Text("Idle")
+        }
+    }
+}
+
+struct PlayPauseButton: View {
+    let isPlaying: Bool
+    let ink: WidgetInk
+
+    var body: some View {
+        ControlButton(symbol: isPlaying ? "pause.fill" : "play.fill",
+                      intent: TogglePlaybackIntent(isPlaying: isPlaying), ink: ink)
+    }
+}
+
+struct ControlButton<Intent: AppIntent>: View {
+    let symbol: String
+    let intent: Intent
+    let ink: WidgetInk
+
+    var body: some View {
+        Button(intent: intent) {
+            Image(systemName: symbol)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(ink.primary)
+                .frame(width: 30, height: 30)
+                .background(Circle().fill(ink.control))
+        }
+        .buttonStyle(.plain)
     }
 }

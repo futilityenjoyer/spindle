@@ -9,7 +9,7 @@ Last updated: 2026-11-12, M0 device testing.
 |---|---|
 | 1 Feasibility research | ✅ Done: [docs/FEASIBILITY.md](docs/FEASIBILITY.md) |
 | 2 Architecture & planning | ✅ Done; owner decisions recorded below |
-| 3 Core development | ✅ M0, ✅ M1, ✅ **M2+M4** (2026-11-12): real vinyl with 60% full-bleed album art, artwork cache, queue-predicting timeline, play/pause + skip buttons. App is the setup utility (M3 scope covered by the Diagnostics/Spotify screen). **Next: M5 battery check + M6 QA of the 12 scenarios.** |
+| 3 Core development | ✅ M0, ✅ M1, ✅ M2+M4 (2026-11-12). 🔨 **Design build written, not yet compiled:** prototype look (art-tinted background, procedural grooves/band gaps/bevel, bow-tie sheen, rotating etchings + label marks), small = Inscribed (cover upright, uncropped), medium = Sleeve (plain colour label), ⏮⏯⏭ on medium, Refresh Spindle Shortcuts action, Responsive (5 min) setting. **Next: M5 battery + M6 QA.** |
 | 4 Optimisation | Not started |
 | 5 Testing | Not started |
 | 6 Deployment docs | Install guide: [docs/INSTALL.md](docs/INSTALL.md) (iloader) |
@@ -40,6 +40,7 @@ Full detail: [FEASIBILITY.md §4](docs/FEASIBILITY.md#4-recommended-architecture
 | 2026-11-11 | **No MetricKit / battery-metrics screen**; battery is judged via Settings › Battery | Owner preference; keeps Diagnostics to a simple reload/request log |
 | 2026-11-11 | **Widget buttons: play/pause + skip** (each tap force-refreshes the widget) | Fixes staleness for anything done from the widget; changes made elsewhere are still caught at the ~10 min reload |
 | 2026-11-12 | **CI pinned to Xcode 26.6**; Xcode 27 preview build dropped | Device test: the 26.6 build spins on iOS 27.2 |
+| 2026-11-12 | **Small widget = Inscribed** (cover upright, uncropped, inside the label; record spins beneath); medium = Sleeve; **⏮ previous** button added; **Refresh Spindle** Shortcuts action + **Responsive updates** setting | Owner request: both sizes compliant with Spotify's artwork rules; free freshness improvements chosen over the paid push route |
 | 2026-11-12 | **Design reset to the prototype: Sleeve layout for small and medium, plain colour label on the spinning record, art-tinted background, prototype disc detail and typography.** Supersedes "Full-bleed label only" and the 60% art label | Owner noticed the build didn't match the design preview. Sleeve shows the full, still, uncropped cover, which complies with Spotify's artwork rules. Spin and play/pause + skip buttons kept. |
 | 2026-11-12 | **Album art label = 60% of the disc** (was 38% in M0) | Owner wants the art to dominate; one constant (`VinylStyle.labelFraction`) |
 | 2026-11-12 | **M2 and M4 merged into one build; CI widget renders deferred** | Owner asked to speed up; fewer installs. Trade-off: more new code compiled at once |

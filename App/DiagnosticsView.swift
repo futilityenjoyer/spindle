@@ -13,6 +13,8 @@ struct DiagnosticsView: View {
     @State private var spotify: SpotifyState = .checking
     @State private var isWorking = false
     @State private var labelImage: CGImage?
+    @State private var palette: ArtPalette = .neutral
+    @State private var responsive: Bool = SharedSettings.responsiveUpdates
 
     enum SpotifyState {
         case checking
@@ -25,19 +27,40 @@ struct DiagnosticsView: View {
         NavigationStack {
             List {
                 Section {
-                    // Still preview of the widget's record with the current album art.
-                    ZStack {
-                        VinylDisc(label: labelImage)
-                        VinylSheen()
-                    }
-                    .frame(height: 220)
-                    .frame(maxWidth: .infinity)
-                    .listRowBackground(Color.clear)
+                    // Still preview of the small widget's record with the current cover.
+                    VinylRecord(style: .inscribed, art: labelImage, palette: palette,
+                                labelFraction: 0.6, rotation: EmptyModifier.identity)
+                        .frame(height: 220)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .listRowBackground(Color(rgb: palette.surfaceDark))
                 }
 
                 spotifySection
 
-                Section("Widget") {
+                Section {
+                    Toggle("Responsive updates", isOn: $responsive)
+                } header: {
+                    Text("Widget")
+                } footer: {
+                    Text("Checks Spotify every 5 minutes while playing instead of 10. Fresher, but iOS's daily refresh allowance runs out after fewer listening hours.")
+                }
+                .onChange(of: responsive) { _, isOn in
+                    SharedSettings.responsiveUpdates = isOn
+                    WidgetCenter.shared.reloadAllTimelines()
+                }
+
+                Section {
+                    Text("1. Open the **Shortcuts** app → **Automation** → **+**.")
+                    Text("2. Choose **App**, pick **Spotify**, tick **Is Closed**, and choose **Run Immediately**.")
+                    Text("3. Add the action **Refresh Spindle**, then **Done**.")
+                } header: {
+                    Text("Refresh when you leave Spotify")
+                } footer: {
+                    Text("After you change songs inside the Spotify app, the widget catches up as soon as you leave it.")
+                }
+
+                Section("Widget status") {
                     if let latest = heartbeats.last {
                         row("Last widget refresh", latest.date.formatted(date: .abbreviated, time: .standard))
                         row("Widget built with", xcodeName(latest.xcode))
@@ -107,6 +130,7 @@ struct DiagnosticsView: View {
                     SpotifyService.signOut()
                     WidgetCenter.shared.reloadAllTimelines()
                     labelImage = nil
+                    palette = .neutral
                     spotify = .signedOut(note: nil)
                 }
 
@@ -118,6 +142,7 @@ struct DiagnosticsView: View {
                     SpotifyService.signOut()
                     WidgetCenter.shared.reloadAllTimelines()
                     labelImage = nil
+                    palette = .neutral
                     spotify = .signedOut(note: nil)
                 }
             }
@@ -184,6 +209,7 @@ struct DiagnosticsView: View {
             } else {
                 labelImage = nil
             }
+            palette = labelImage.map { ArtPaletteExtractor.palette(from: $0) } ?? .neutral
             // Reloads requested while the app is open don't use the widget's daily budget.
             WidgetCenter.shared.reloadAllTimelines()
         } catch SpotifyService.Failure.notSignedIn {

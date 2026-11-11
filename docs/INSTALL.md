@@ -44,6 +44,16 @@ We install with **iloader** and a free Apple ID.
 
 The medium widget's top-left corner should say **Shared folder ✓**.
 
+## Optional: refresh when you leave Spotify
+
+iOS doesn't tell widgets when Spotify changes song. This automation updates the widget as soon as you leave the Spotify app:
+
+1. Open the **Shortcuts** app → **Automation** → **+** → **App**.
+2. Pick **Spotify**, tick **Is Closed**, and choose **Run Immediately**.
+3. Add the action **Refresh Spindle**, then tap **Done**.
+
+It doesn't catch changes made from Control Center, AirPods or a car; the widget's ~10-minute check covers those. For checks every 5 minutes, turn on **Responsive updates** in the Spindle app. That uses iOS's daily refresh allowance faster.
+
 ---
 
 ## Weekly re-install (free Apple ID)
