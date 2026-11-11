@@ -1,12 +1,24 @@
+import AuthenticationServices
 import SwiftUI
 import WidgetKit
 import Core
 
-/// M0 screen: everything needed to confirm the install works without a Mac.
-/// Long-press any value to copy it (e.g. the bundle ID for the Spotify dashboard).
+/// Setup and diagnostics: connect Spotify, see what the widget sees, and confirm the
+/// install works without a Mac. Long-press any value to copy it.
 struct DiagnosticsView: View {
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.webAuthenticationSession) private var webAuthenticationSession
+
     @State private var heartbeats: [WidgetHeartbeat] = []
+    @State private var spotify: SpotifyState = .checking
+    @State private var isWorking = false
+
+    enum SpotifyState {
+        case checking
+        case signedOut(note: String?)
+        case connected(PlaybackSnapshot)
+        case problem(String)
+    }
 
     var body: some View {
         NavigationStack {
@@ -21,6 +33,8 @@ struct DiagnosticsView: View {
                     .listRowBackground(Color.clear)
                 }
 
+                spotifySection
+
                 Section("Widget") {
                     if let latest = heartbeats.last {
                         row("Last widget refresh", latest.date.formatted(date: .abbreviated, time: .standard))
@@ -28,7 +42,7 @@ struct DiagnosticsView: View {
                         row("Spin effect type", latest.spinEffectTypePresent ? "Present" : "Missing ❌")
                         row("Refreshes logged", "\(heartbeats.count)")
                     } else {
-                        Text("No widget heartbeat yet. Add the **Spin test** widget to your Home Screen, then come back.")
+                        Text("No widget heartbeat yet. Add the **Spindle** widget to your Home Screen, then come back.")
                             .foregroundStyle(.secondary)
                     }
                     Button("Reload widget now") {
@@ -40,7 +54,6 @@ struct DiagnosticsView: View {
                     row("Authored ID", AppGroup.baseID)
                     row("Resolved ID", AppGroup.id ?? "Not found ❌")
                     row("Shared folder", AppGroup.containerURL == nil ? "Unavailable ❌" : "OK ✅")
-                    // What the re-signing tool actually granted — tells us why a group is missing.
                     row("Groups in profile", AppGroup.profile?.appGroups.listOrNone ?? "no profile")
                     row("ALTAppGroups", AppGroup.altAppGroups.listOrNone)
                     row("Profile name", AppGroup.profile?.name ?? "—")
@@ -57,17 +70,131 @@ struct DiagnosticsView: View {
                 }
             }
             .navigationTitle("Spindle")
-            .refreshable { refresh() }
+            .refreshable { await refreshAll(force: true) }
         }
-        .onAppear(perform: refresh)
+        .task { await refreshAll(force: false) }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { refresh() }
+            if phase == .active { Task { await refreshAll(force: false) } }
         }
     }
 
-    private func refresh() {
+    // MARK: Spotify
+
+    @ViewBuilder
+    private var spotifySection: some View {
+        Section("Spotify") {
+            switch spotify {
+            case .checking:
+                HStack { ProgressView(); Text("Checking…").foregroundStyle(.secondary) }
+
+            case .signedOut(let note):
+                if let note { Text(note).foregroundStyle(.secondary) }
+                Button {
+                    Task { await connect() }
+                } label: {
+                    Label("Connect Spotify", systemImage: "music.note")
+                }
+                .disabled(isWorking)
+
+            case .connected(let snapshot):
+                nowPlayingRows(snapshot)
+                row("Last fetched", snapshot.fetchedAt.formatted(date: .omitted, time: .standard))
+                Button("Refresh now") { Task { await refreshAll(force: true) } }
+                    .disabled(isWorking)
+                Button("Disconnect Spotify", role: .destructive) {
+                    SpotifyService.signOut()
+                    WidgetCenter.shared.reloadAllTimelines()
+                    spotify = .signedOut(note: nil)
+                }
+
+            case .problem(let message):
+                Text(message).foregroundStyle(.secondary)
+                Button("Try again") { Task { await refreshAll(force: true) } }
+                    .disabled(isWorking)
+                Button("Disconnect Spotify", role: .destructive) {
+                    SpotifyService.signOut()
+                    WidgetCenter.shared.reloadAllTimelines()
+                    spotify = .signedOut(note: nil)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func nowPlayingRows(_ snapshot: PlaybackSnapshot) -> some View {
+        if let now = snapshot.nowPlaying {
+            let status = now.isPlaying ? "Playing" : "Paused"
+            if let item = now.item {
+                row(status, "\(item.title) — \(item.subtitle)")
+            } else {
+                row(status, now.kind == .ad ? "Advertisement" : "Unavailable (private session?)")
+            }
+        } else {
+            row("Now playing", "Nothing")
+        }
+        if !snapshot.queue.isEmpty {
+            row("Up next", snapshot.queue.prefix(3).map(\.title).joined(separator: " · "))
+        }
+    }
+
+    @MainActor
+    private func connect() async {
+        isWorking = true
+        defer { isWorking = false }
+        do {
+            try await SpotifyLogin.signIn(using: webAuthenticationSession)
+            await refreshSpotify(force: true)
+        } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
+            // User closed the sign-in sheet; nothing to report.
+        } catch let failure as SpotifyService.Failure {
+            spotify = .problem(failure.explanation)
+        } catch {
+            spotify = .problem(error.localizedDescription)
+        }
+    }
+
+    /// One fetch when the app opens (and on pull-to-refresh). The result is shared with
+    /// the widget, and reloading the widget while the app is open doesn't use its budget.
+    @MainActor
+    private func refreshSpotify(force: Bool) async {
+        if !force, case .connected(let snapshot) = spotify, snapshot.isFresh(now: Date(), maxAge: 15) {
+            return   // just fetched; don't wake the radio again
+        }
+        do {
+            guard try TokenStore.load() != nil else {
+                spotify = .signedOut(note: nil)
+                return
+            }
+        } catch {
+            spotify = .problem(SpotifyService.Failure.waitingForUnlock.explanation)
+            return
+        }
+
+        isWorking = true
+        defer { isWorking = false }
+        do {
+            let snapshot = try await SpotifyService.fetchPlayback()
+            spotify = .connected(snapshot)
+            WidgetCenter.shared.reloadAllTimelines()
+        } catch SpotifyService.Failure.notSignedIn {
+            spotify = .signedOut(note: nil)
+        } catch SpotifyService.Failure.api(.invalidGrant) {
+            spotify = .signedOut(note: SpotifyService.Failure.api(.invalidGrant).explanation)
+        } catch let failure as SpotifyService.Failure {
+            spotify = .problem(failure.explanation)
+        } catch {
+            spotify = .problem(error.localizedDescription)
+        }
+    }
+
+    @MainActor
+    private func refreshAll(force: Bool) async {
+        heartbeats = SharedStore.loadHeartbeats()
+        await refreshSpotify(force: force)
         heartbeats = SharedStore.loadHeartbeats()
     }
+
+    // MARK: Helpers
 
     private var expiryText: String {
         guard let profile = AppGroup.profile, let date = profile.expirationDate else {

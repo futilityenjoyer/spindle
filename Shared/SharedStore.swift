@@ -7,6 +7,26 @@ enum SharedStore {
         AppGroup.containerURL?.appendingPathComponent("heartbeats.json")
     }
 
+    private static var snapshotURL: URL? {
+        AppGroup.containerURL?.appendingPathComponent("playback.json")
+    }
+
+    /// The latest player state fetched by either the app or the widget.
+    static func loadSnapshot() -> PlaybackSnapshot? {
+        guard let url = snapshotURL, let data = try? Data(contentsOf: url) else { return nil }
+        return PlaybackSnapshot.decode(data)
+    }
+
+    static func saveSnapshot(_ snapshot: PlaybackSnapshot) {
+        guard let url = snapshotURL, let data = try? PlaybackSnapshot.encode(snapshot) else { return }
+        try? data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+    }
+
+    static func deleteSnapshot() {
+        guard let url = snapshotURL else { return }
+        try? FileManager.default.removeItem(at: url)
+    }
+
     static func loadHeartbeats() -> [WidgetHeartbeat] {
         guard let url = heartbeatURL, let data = try? Data(contentsOf: url) else { return [] }
         return WidgetHeartbeat.decode(data)
