@@ -40,6 +40,7 @@ Full detail: [FEASIBILITY.md §4](docs/FEASIBILITY.md#4-recommended-architecture
 | 2026-11-11 | **No MetricKit / battery-metrics screen**; battery is judged via Settings › Battery | Owner preference; keeps Diagnostics to a simple reload/request log |
 | 2026-11-11 | **Widget buttons: play/pause + skip** (each tap force-refreshes the widget) | Fixes staleness for anything done from the widget; changes made elsewhere are still caught at the ~10 min reload |
 | 2026-11-12 | **CI pinned to Xcode 26.6**; Xcode 27 preview build dropped | Device test: the 26.6 build spins on iOS 27.2 |
+| 2026-11-12 | **Widget speed: 16⅔ RPM** (3.6 s per turn) | Owner compared 16⅔ vs 33⅓ side by side on the device and preferred the slower one |
 | 2026-11-11 | **Token storage: protected App Group file** (not Keychain) | Can't break on weekly re-signing. Excluded from backup; readable only by app + widget. |
 | 2026-11-11 | **Widget sizes: Small + Medium**, as in the prototype | Owner choice. Small = record + play/pause; Medium = record + track/artist + play/pause + skip |
 | 2026-11-11 | **Widget-only scope:** the app is a setup utility; App Remote / Spotify iOS SDK dropped | Owner only wants the widget. Removes the least testable dependency (App Remote can't run on the CI simulator), the in-app animation engine and the reconnect/polling logic. A player screen can be added later without rework. |
@@ -100,7 +101,8 @@ See [docs/INSTALL.md](docs/INSTALL.md). In short: push to GitHub → the Actions
 | Check | Result |
 |---|---|
 | CI build (Xcode 26.6, SDK iphoneos26.5) | ✅ Compiled, installed |
-| **Widget spins continuously** (ClockHandKit) | ✅ **Yes**. The key risk is retired for this toolchain/iOS pair. |
+| **Widget spins continuously** (ClockHandKit) | ✅ **Yes**. The key risk is retired for this toolchain/iOS pair. Preferred speed: 16⅔ RPM. |
+| Widget appears in the gallery | ✅ Without trouble |
 | Bundle ID after re-sign | `dev.spindlevinyl.app.4K99FM682B` (Sideloadly appends the team ID, like AltStore/SideStore) |
 | Signature expiry shown | ✅ 7 days |
 | App Group resolved | ❌ **Not found**; shared folder unavailable; therefore no widget heartbeat |
