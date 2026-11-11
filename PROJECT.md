@@ -9,7 +9,7 @@ Last updated: 2026-11-12, M0 device testing.
 |---|---|
 | 1 Feasibility research | ✅ Done: [docs/FEASIBILITY.md](docs/FEASIBILITY.md) |
 | 2 Architecture & planning | ✅ Done; owner decisions recorded below |
-| 3 Core development | ✅ **M0 done** (2026-11-12). 🔨 **M1 written, not yet compiled or device-tested:** PKCE sign-in via the GitHub Pages return page, token file + cross-process refresh lock, currently-playing + queue fetch shared through the App Group; the widget shows the track and spins only while playing. |
+| 3 Core development | ✅ **M0 done** (2026-11-12). ✅ **M1 done** (2026-11-12): Spotify PKCE sign-in via the GitHub Pages return page; token shared with the widget; widget shows the current track and spins only while playing. **Next: M2, vinyl renderer with full-bleed album art.** |
 | 4 Optimisation | Not started |
 | 5 Testing | Not started |
 | 6 Deployment docs | Install guide: [docs/INSTALL.md](docs/INSTALL.md) (iloader) |
@@ -129,5 +129,14 @@ See [docs/INSTALL.md](docs/INSTALL.md). In short: push to GitHub → the Actions
 | Groups in profile | `group.dev.spindlevinyl.app.4K99FM682B` (iloader names the group after the bundle ID) |
 | Resolved ID / Shared folder | ✅ Same value / OK. Found via the resolver's last-resort rule; unit test added |
 | Widget heartbeat | ✅ Shown in the app after re-adding the widget. The widget writes to the shared folder, so both sides of the App Group work. |
+
+### M1 device test (2026-11-12): same phone, iloader install
+
+| Check | Result |
+|---|---|
+| CI build of M1 (first compile) | ✅ |
+| Connect Spotify (PKCE via GitHub Pages return page) | ✅ Signed in and returned to the app |
+| App shows current track | ✅ |
+| Widget shows track and reflects playing/paused | ✅ (owner report: "It works!") |
 
 The 12-scenario matrix will live here from M3 onward.
