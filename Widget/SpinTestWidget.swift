@@ -73,6 +73,12 @@ struct SpinTestView: View {
                 labelled(SpinningRecord(secondsPerTurn: 3.6), "16⅔ RPM")
                 labelled(SpinningRecord(secondsPerTurn: 1.8), "33⅓ RPM")
             }
+            // The widget's own view of the App Group (it can't report to the app without one).
+            .overlay(alignment: .topLeading) {
+                Text(AppGroup.shortStatus)
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.55))
+            }
         default:
             SpinningRecord(secondsPerTurn: 3.6)
                 .padding(4)

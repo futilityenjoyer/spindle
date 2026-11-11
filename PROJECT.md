@@ -9,7 +9,7 @@ Last updated: 2026-11-11, end of Phase 1.
 |---|---|
 | 1 Feasibility research | ✅ Done: [docs/FEASIBILITY.md](docs/FEASIBILITY.md) |
 | 2 Architecture & planning | ✅ Done; owner decisions recorded below |
-| 3 Core development | 🔨 **M0 written, not yet compiled.** Needs the first CI run on GitHub, then the on-phone spin test ([docs/INSTALL.md](docs/INSTALL.md)) |
+| 3 Core development | 🔨 **M0 in progress.** ✅ CI builds and installs via Sideloadly; ✅ **widget spins on iOS 27.2** (Xcode 26.6 build). ❌ **App Group not granted** after Sideloadly re-signing (see Testing results). Blocks M1. |
 | 4 Optimisation | Not started |
 | 5 Testing | Not started |
 | 6 Deployment docs | Research done ([06-build-infrastructure.md](docs/research/06-build-infrastructure.md)); guide not yet written |
@@ -39,6 +39,7 @@ Full detail: [FEASIBILITY.md §4](docs/FEASIBILITY.md#4-recommended-architecture
 | 2026-11-11 | **Full-bleed label only** (no Inscribed / Still modes) | Sole user; accepted Spotify's "don't crop" policy risk |
 | 2026-11-11 | **No MetricKit / battery-metrics screen**; battery is judged via Settings › Battery | Owner preference; keeps Diagnostics to a simple reload/request log |
 | 2026-11-11 | **Widget buttons: play/pause + skip** (each tap force-refreshes the widget) | Fixes staleness for anything done from the widget; changes made elsewhere are still caught at the ~10 min reload |
+| 2026-11-12 | **CI pinned to Xcode 26.6**; Xcode 27 preview build dropped | Device test: the 26.6 build spins on iOS 27.2 |
 | 2026-11-11 | **Token storage: protected App Group file** (not Keychain) | Can't break on weekly re-signing. Excluded from backup; readable only by app + widget. |
 | 2026-11-11 | **Widget sizes: Small + Medium**, as in the prototype | Owner choice. Small = record + play/pause; Medium = record + track/artist + play/pause + skip |
 | 2026-11-11 | **Widget-only scope:** the app is a setup utility; App Remote / Spotify iOS SDK dropped | Owner only wants the widget. Removes the least testable dependency (App Remote can't run on the CI simulator), the in-app animation engine and the reconnect/polling logic. A player screen can be added later without rework. |
@@ -94,4 +95,18 @@ See [docs/INSTALL.md](docs/INSTALL.md). In short: push to GitHub → the Actions
 
 ## Testing results
 
-None yet. The 12-scenario matrix will live here from M3 onward.
+### M0 device test 1 (2026-11-12): iPhone, iOS 27.2 (24B119), Sideloadly, free Apple ID
+
+| Check | Result |
+|---|---|
+| CI build (Xcode 26.6, SDK iphoneos26.5) | ✅ Compiled, installed |
+| **Widget spins continuously** (ClockHandKit) | ✅ **Yes**. The key risk is retired for this toolchain/iOS pair. |
+| Bundle ID after re-sign | `dev.spindlevinyl.app.4K99FM682B` (Sideloadly appends the team ID, like AltStore/SideStore) |
+| Signature expiry shown | ✅ 7 days |
+| App Group resolved | ❌ **Not found**; shared folder unavailable; therefore no widget heartbeat |
+
+**Next:** a Diagnostics build that lists the groups in the signing profile, to tell apart these two cases:
+1. Sideloadly grants no App Group on free accounts → switch to **SideStore**, which documents registering `<group>.<TEAMID>`.
+2. A group is granted but not matched → fix the resolver.
+
+The 12-scenario matrix will live here from M3 onward.

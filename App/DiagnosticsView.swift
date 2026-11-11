@@ -40,6 +40,10 @@ struct DiagnosticsView: View {
                     row("Authored ID", AppGroup.baseID)
                     row("Resolved ID", AppGroup.id ?? "Not found ❌")
                     row("Shared folder", AppGroup.containerURL == nil ? "Unavailable ❌" : "OK ✅")
+                    // What the re-signing tool actually granted — tells us why a group is missing.
+                    row("Groups in profile", AppGroup.profile?.appGroups.listOrNone ?? "no profile")
+                    row("ALTAppGroups", AppGroup.altAppGroups.listOrNone)
+                    row("Profile name", AppGroup.profile?.name ?? "—")
                 }
 
                 Section("Install") {

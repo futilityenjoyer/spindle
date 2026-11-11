@@ -36,11 +36,11 @@ git push -u origin main
 ## 2. Let the cloud Mac build it
 
 1. On your repo page, open the **Actions** tab. The **ios** workflow starts on every push.
-2. It runs three jobs: *Core package tests*, then *IPA (xcode-26.6)* and *IPA (xcode-27)*. Expect about 10–20 minutes.
-3. When a job is green, open the run and scroll to **Artifacts**. Download `Spindle-xcode-26.6` (and later `Spindle-xcode-27`).
-4. Each download is a `.zip`. Unzip it to get `Spindle-xcode-26.6.ipa`.
+2. It runs two jobs: *Core package tests*, then *IPA*. Expect about 10–15 minutes.
+3. When the run is green, open it and scroll to **Artifacts**. Download `Spindle`.
+4. The download is a `.zip`. Unzip it to get `Spindle.ipa`.
 
-If the **xcode-27** job fails, that's fine for now: it runs on GitHub's *preview* image. Tell me the error and test the 26.6 build first.
+CI is pinned to **Xcode 26.6**, the build confirmed to spin on iOS 27.2.
 
 ## 3. Prepare Windows (once)
 
@@ -57,7 +57,7 @@ If the **xcode-27** job fails, that's fine for now: it runs on GitHub's *preview
 ## 5. Install the test build
 
 1. Open Sideloadly. Your iPhone should appear in the device list.
-2. Drag `Spindle-xcode-26.6.ipa` onto Sideloadly.
+2. Drag `Spindle.ipa` onto Sideloadly.
 3. Enter your Apple ID in Sideloadly and press **Start**.
 4. Wait for "Done". The **Spindle** app appears on your Home Screen.
 
@@ -85,7 +85,7 @@ Send me:
 - A **screenshot of the Diagnostics screen**.
 - Your **iOS version** (Settings › General › About).
 
-Then repeat steps 5–6 with `Spindle-xcode-27.ipa`. It has the same app ID, so it replaces the first one.
+Re-installing a newer `Spindle.ipa` with the same Apple ID replaces the old one and keeps the same app ID.
 
 ---
 

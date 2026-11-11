@@ -20,31 +20,22 @@ jobs:
       - run: swift test --package-path Packages/Core
 
   build-ipa:
-    name: IPA (${{ matrix.name }})
+    name: IPA
     needs: core-tests
-    strategy:
-      fail-fast: false
-      # M0 spin spike: the private rotation effect has been reported working when
-      # built with Xcode 27, but our default toolchain is Xcode 26.6. Build both,
-      # install each on the phone, and keep the one that spins.
-      matrix:
-        include:
-          - name: xcode-26.6
-            runner: macos-26
-            xcode: /Applications/Xcode_26.6.app
-          - name: xcode-27
-            runner: xcode-27          # GitHub "preview" image
-            xcode: ""                 # use the image's default Xcode
-    runs-on: ${{ matrix.runner }}
+    # Pinned: the M0 spin test confirmed the widget rotation works on iOS 27.2
+    # when built with Xcode 26.6 (2026-11-12). Change only after re-testing the spin.
+    runs-on: macos-26
     timeout-minutes: 40
+    env:
+      XCODE_APP: /Applications/Xcode_26.6.app
     steps:
       - uses: actions/checkout@v4
 
       - name: Select Xcode
         run: |
-          if [ -n "${{ matrix.xcode }}" ]; then sudo xcode-select -s "${{ matrix.xcode }}"; fi
+          sudo xcode-select -s "$XCODE_APP"
           xcodebuild -version
-          echo "### ${{ matrix.name }}: $(xcodebuild -version | head -1)" >> "$GITHUB_STEP_SUMMARY"
+          echo "### $(xcodebuild -version | head -1)" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Generate Xcode project
         run: |
@@ -52,11 +43,11 @@ jobs:
           xcodegen generate
 
       - name: Build, ad-hoc sign with entitlements, package IPA
-        run: bash scripts/make-ipa.sh "Spindle-${{ matrix.name }}"
+        run: bash scripts/make-ipa.sh Spindle
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Spindle-${{ matrix.name }}
-          path: build/Spindle-${{ matrix.name }}.ipa
+          name: Spindle
+          path: build/Spindle.ipa
           retention-days: 14
           if-no-files-found: error

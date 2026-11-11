@@ -17,10 +17,14 @@ enum AppGroup {
         return ProvisioningProfile.parse(data)
     }()
 
+    /// Groups AltStore writes into Info.plist after re-signing (other tools don't).
+    static let altAppGroups: [String] =
+        Bundle.main.object(forInfoDictionaryKey: "ALTAppGroups") as? [String] ?? []
+
     /// The group this binary can actually use, or nil if none works (App Group lost in signing).
     static let id: String? = AppGroupResolver.resolve(
         baseID: baseID,
-        altAppGroups: Bundle.main.object(forInfoDictionaryKey: "ALTAppGroups") as? [String] ?? [],
+        altAppGroups: altAppGroups,
         profileGroups: profile?.appGroups ?? [],
         isUsable: { FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: $0) != nil }
     )
@@ -28,4 +32,16 @@ enum AppGroup {
     static var containerURL: URL? {
         id.flatMap { FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: $0) }
     }
+
+    /// One-line status for screens with little room (the widget).
+    static var shortStatus: String {
+        if id != nil { return "Shared folder ✓" }
+        let count = profile?.appGroups.count ?? 0
+        return profile == nil ? "No group · no profile" : "No group · profile lists \(count)"
+    }
+}
+
+extension Array where Element == String {
+    /// "a, b" or "none" — for Diagnostics rows.
+    var listOrNone: String { isEmpty ? "none" : joined(separator: ", ") }
 }
