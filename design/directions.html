@@ -98,6 +98,14 @@ header p { margin: 0; color: var(--muted); max-width: 64ch; }
 .cap { font-size: 12px; color: var(--muted); text-align: center; margin-top: -8px; }
 .caps { display: grid; gap: 16px; justify-items: center; }
 
+.wall.photo-dark { background: radial-gradient(60% 50% at 18% 18%, #d9773f 0%, transparent 62%), radial-gradient(55% 45% at 88% 32%, #2f8f9d 0%, transparent 62%), radial-gradient(70% 60% at 50% 105%, #6b3fa0 0%, transparent 66%), #141420; }
+.wall.photo-light { background: radial-gradient(60% 50% at 18% 18%, #ffc6a0 0%, transparent 62%), radial-gradient(55% 45% at 88% 32%, #a5dde3 0%, transparent 62%), radial-gradient(70% 60% at 50% 105%, #d6c2f2 0%, transparent 66%), #eef0f5; }
+.w .frost { position: absolute; inset: 0; backdrop-filter: blur(26px) saturate(1.6); -webkit-backdrop-filter: blur(26px) saturate(1.6); pointer-events: none; }
+.wbtn.plain { background: transparent; width: 34px; height: 34px; }
+.wbtn.plain svg { width: 19px; height: 19px; }
+.textcol.clean .title { font-size: 17px; line-height: 21px; font-weight: 700; letter-spacing: -0.015em; }
+.textcol.clean .artist { font-size: 14px; line-height: 19px; }
+.textcol.clean .ctrls { margin-top: auto; gap: 10px; margin-left: -6px; }
 footer { color: var(--muted); font-size: 13px; }
 @media (prefers-reduced-motion: reduce) { .w .glow { transition: none; } }
 </style>
@@ -105,7 +113,7 @@ footer { color: var(--muted); font-size: 13px; }
 <div class="page">
   <header>
     <h1>Spindle Directions</h1>
-    <p>Two new looks for the widget next to what you have now, drawn at real iPhone size with a glossier record. The spin, the uncropped upright cover and the &#9198; &#9199; &#9197; buttons stay in every option. Open this page on your iPhone to judge the real size.</p>
+    <p>New looks for the widget next to what you have now, drawn at real iPhone size with a glossier record. The spin, the uncropped upright cover and the &#9198; &#9199; &#9197; buttons stay in every option. Open this page on your iPhone to judge the real size.</p>
   </header>
 
   <div class="controls" role="toolbar" aria-label="Preview controls">
@@ -151,6 +159,15 @@ footer { color: var(--muted); font-size: 13px; }
         <li><strong>Colour from the cover.</strong> Three colours picked from the album art blend behind the record, with a soft glow and film grain.</li>
         <li><strong>Lifted record.</strong> Stronger studio highlight and a shadow, so it floats above the colour.</li>
         <li><strong>In a real widget:</strong> built from a mesh gradient and blurred shapes, all static and cheap. The cover itself is never blurred or cropped, which keeps Spotify's artwork rules.</li>
+      </ul>
+    </section>
+    <section class="col" data-dir="clean">
+      <h2>C &middot; Clean glass <small>minimal</small></h2>
+      <div class="wall dark"><div class="scaler caps"></div></div>
+      <ul>
+        <li><strong>Fewer things.</strong> Title, artist, three controls and one record. No status line, no sleeve, no button circles.</li>
+        <li><strong>Two anchors.</strong> Bold text pinned top-left, controls bottom-left, a large record on the right with a thin tonearm.</li>
+        <li><strong>Glass background.</strong> Frosted and neutral, so the album art is the only colour. If your Home Screen uses Clear widgets, iOS draws this glass for every widget anyway.</li>
       </ul>
     </section>
   </div>
@@ -369,8 +386,8 @@ footer { color: var(--muted); font-size: 13px; }
     const sheenTint = v.kind === "float" ? pal.accent.map((c) => 0.55 + c * 0.45) : null;
     v.tex = {
       disc: buildDisc(px, v.labelFrac, gloss),
-      sheen: buildSheen(px, v.labelFrac, v.kind === "flat" ? 0.22 : 0.48, sheenTint),
-      rot: buildRotating(px, v.labelFrac, v.style === "plain" ? pal.label : pal.edge),
+      sheen: buildSheen(px, v.labelFrac, v.kind === "flat" ? 0.22 : (v.kind === "clean" ? 0.34 : 0.48), sheenTint),
+      rot: buildRotating(px, v.labelFrac, v.kind === "clean" ? [0.95, 0.94, 0.92] : (v.style === "plain" ? pal.label : pal.edge)),
     };
     v.key = key;
     return v.tex;
@@ -437,8 +454,8 @@ footer { color: var(--muted); font-size: 13px; }
     const t = texturesFor(v, Math.round(R * 2));
     const a = state.angle;
     if (v.kind === "turntable") drawPlatter(g, cx, cy, R, a);
-    if (v.kind === "float") {
-      g.save(); g.shadowColor = "rgba(0,0,0,0.55)"; g.shadowBlur = R * 0.28; g.shadowOffsetY = R * 0.1;
+    if (v.kind === "float" || v.kind === "clean") {
+      g.save(); g.shadowColor = v.kind === "clean" ? "rgba(0,0,0,0.35)" : "rgba(0,0,0,0.55)"; g.shadowBlur = R * (v.kind === "clean" ? 0.16 : 0.28); g.shadowOffsetY = R * (v.kind === "clean" ? 0.05 : 0.1);
       g.fillStyle = "#000"; g.beginPath(); g.arc(cx, cy, R * 0.98, 0, TAU); g.fill(); g.restore();
     }
     g.drawImage(t.disc, cx - R, cy - R, R * 2, R * 2);
@@ -447,6 +464,29 @@ footer { color: var(--muted); font-size: 13px; }
     if (v.style === "inscribed") drawInscribed(g, cx, cy, R * v.labelFrac, covers[state.track]);
     else { g.fillStyle = "#0b0b0d"; g.beginPath(); g.arc(cx, cy, Math.max(R * 0.03, 2), 0, TAU); g.fill(); }
     if (v.kind === "turntable") drawTonearm(g, W, cx, cy, R, state.arm, !state.light);
+    if (v.kind === "clean") drawCleanArm(g, W, cx, cy, R, state.arm, v.pivot, state.light);
+  }
+
+  // A thin, simple arm: outlined pivot, straight tube, short angled headshell.
+  function drawCleanArm(g, W, cx, cy, R, t, pivot, light) {
+    const P = [pivot[0] * W, pivot[1] * W];
+    const H = [cx + R * 0.62, cy + R * 0.2];
+    const L = Math.hypot(H[0] - P[0], H[1] - P[1]);
+    const play = Math.atan2(H[1] - P[1], H[0] - P[0]);
+    const ang = play - (1 - t) * 0.35;
+    const hx = P[0] + Math.cos(ang) * L, hy = P[1] + Math.sin(ang) * L;
+    const ink = light ? "rgba(30,30,34,0.85)" : "rgba(236,237,241,0.94)";
+    g.save();
+    g.shadowColor = "rgba(0,0,0,0.3)"; g.shadowBlur = R * 0.05; g.shadowOffsetY = R * 0.02;
+    g.strokeStyle = ink; g.lineCap = "round"; g.lineWidth = Math.max(R * 0.028, 1.2);
+    g.beginPath(); g.moveTo(P[0], P[1]); g.lineTo(hx, hy); g.stroke();
+    const hs = ang + 0.6;
+    g.lineWidth = Math.max(R * 0.065, 2);
+    g.beginPath(); g.moveTo(hx, hy); g.lineTo(hx + Math.cos(hs) * R * 0.12, hy + Math.sin(hs) * R * 0.12); g.stroke();
+    g.restore();
+    g.strokeStyle = ink; g.lineWidth = Math.max(R * 0.022, 1);
+    g.beginPath(); g.arc(P[0], P[1], R * 0.1, 0, TAU); g.stroke();
+    g.fillStyle = ink; g.beginPath(); g.arc(P[0], P[1], R * 0.035, 0, TAU); g.fill();
   }
 
   // ---------- Widget markup ----------
@@ -456,7 +496,7 @@ footer { color: var(--muted); font-size: 13px; }
     pause: '<svg viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>',
     next: '<svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>',
   };
-  const btn = (kind, glass) => `<button class="wbtn${glass ? " glass" : ""}" data-act="${kind}" aria-label="${kind === "play" ? "Play or pause" : kind === "next" ? "Next track" : "Previous track"}">${kind === "play" ? (state.playing ? ICON.pause : ICON.play) : ICON[kind]}</button>`;
+  const btn = (kind, glass, plain) => `<button class="wbtn${glass ? " glass" : ""}${plain ? " plain" : ""}" data-act="${kind}" aria-label="${kind === "play" ? "Play or pause" : kind === "next" ? "Next track" : "Previous track"}">${kind === "play" ? (state.playing ? ICON.pause : ICON.play) : ICON[kind]}</button>`;
 
   function grainURL() {
     const c = document.createElement("canvas"); c.width = c.height = 128;
@@ -484,7 +524,15 @@ footer { color: var(--muted); font-size: 13px; }
       <div class="cap">Medium</div>`;
     const small = host.querySelector(".w-small"), medium = host.querySelector(".w-medium");
     const glass = dir === "art";
-    if (dir === "turntable") {
+    if (dir === "clean") {
+      for (const w of [small, medium]) w.insertAdjacentHTML("afterbegin", '<div class="frost"></div>');
+      makeView(small, { kind: "clean", style: "inscribed", labelFrac: 0.6, box: 158, x: 0, y: 0, r: 0.4, cx: 0.47, cy: 0.5, pivot: [0.88, 0.12] });
+      small.insertAdjacentHTML("beforeend", `<div class="corner" style="left:4px;bottom:4px">${btn("play", false, true)}</div>`);
+      makeView(medium, { kind: "clean", style: "inscribed", labelFrac: 0.6, box: 152, x: 338 - 152 - 2, y: 3, r: 0.44, cx: 0.47, cy: 0.5, pivot: [0.9, 0.12] });
+      medium.insertAdjacentHTML("beforeend", `<div class="textcol clean" style="left:16px;right:166px">
+        <div class="title" data-f="title"></div><div class="artist" data-f="artist"></div>
+        <div class="ctrls">${btn("prev", false, true)}${btn("play", false, true)}${btn("next", false, true)}</div></div>`);
+    } else if (dir === "turntable") {
       makeView(small, { kind: "turntable", style: "inscribed", labelFrac: 0.6, box: 158, x: 0, y: 0, r: 0.345, cx: 0.44, cy: 0.52 });
       small.insertAdjacentHTML("beforeend", `<div class="corner" style="left:11px;bottom:11px">${btn("play", false)}</div>`);
       makeView(medium, { kind: "turntable", style: "inscribed", labelFrac: 0.6, box: 158, x: 0, y: 0, r: 0.345, cx: 0.44, cy: 0.52 });
@@ -503,14 +551,19 @@ footer { color: var(--muted); font-size: 13px; }
   function paint(col) {
     const { dir, small, medium } = col._parts;
     const pal = palettes[state.track], tr = TRACKS[state.track], light = state.light;
-    col.querySelector(".wall").className = "wall " + (light ? "light" : "dark");
+    const wallClass = dir === "clean" ? (light ? "photo-light" : "photo-dark") : (light ? "light" : "dark");
+    col.querySelector(".wall").className = "wall " + wallClass;
     for (const w of [small, medium]) {
       const bg = w.querySelector(".bg"), glow = w.querySelector(".glow"), grain = w.querySelector(".grain");
       let fg = light ? "rgba(17,17,19,0.92)" : "rgba(255,255,255,0.95)";
       let fg2 = light ? "rgba(17,17,19,0.55)" : "rgba(255,255,255,0.62)";
       let ctl = light ? "rgba(0,0,0,0.07)" : "rgba(255,255,255,0.14)";
       grain.style.backgroundImage = "none"; glow.style.background = "none";
-      if (dir === "now") {
+      if (dir === "clean") {
+        bg.style.background = light ? "rgba(255,255,255,0.32)" : "rgba(38,38,44,0.30)";
+        fg = light ? "rgba(17,17,19,0.9)" : "rgba(255,255,255,0.97)";
+        fg2 = light ? "rgba(17,17,19,0.5)" : "rgba(255,255,255,0.62)";
+      } else if (dir === "now") {
         bg.style.background = css(light ? pal.surfaceLight : pal.surfaceDark);
       } else if (dir === "turntable") {
         const warm = css(pal.accent, light ? 0.10 : 0.12);
@@ -535,7 +588,8 @@ footer { color: var(--muted); font-size: 13px; }
     if (sleeve) sleeve.src = coverURLs[state.track];
     medium.querySelector('[data-f="title"]').textContent = tr.title;
     medium.querySelector('[data-f="artist"]').textContent = tr.artist;
-    medium.querySelector('[data-f="status"]').innerHTML = state.playing
+    const statusEl = medium.querySelector('[data-f="status"]');
+    if (statusEl) statusEl.innerHTML = state.playing
       ? '<span class="bars" aria-hidden="true"><i style="height:5px"></i><i></i><i style="height:7px"></i></span>Playing'
       : '<svg viewBox="0 0 24 24" width="9" height="9" aria-hidden="true" style="fill:currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>Paused';
     col.querySelectorAll('[data-act="play"]').forEach((b) => { b.innerHTML = state.playing ? ICON.pause : ICON.play; });
