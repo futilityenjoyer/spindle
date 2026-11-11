@@ -1,115 +1,103 @@
-# Installing Spindle on your iPhone from Windows (M0 spin test)
+# Installing Spindle on your iPhone from Windows
 
-This first build has **no Spotify yet**. It answers one question: *does the vinyl actually spin on your iPhone?* It also checks that the app and widget can share data after sideloading.
+We install with **SideStore** and a free Apple ID.
 
-Total time the first time: about 45 minutes, most of it one-time setup.
+> **Why not Sideloadly?** Tested on 2026-11-12: Sideloadly installs and the vinyl spins, but on a free Apple ID it does **not** enable *App Groups*. Without App Groups the widget can't share data with the app, and later can't read your Spotify sign-in. SideStore documents App Group support.
+
+Steps marked **(docs)** follow SideStore's official guide at [docs.sidestore.io](https://docs.sidestore.io/docs/installation/prerequisites); check there if a screen looks different. Steps marked **(not in docs)** are standard SideStore UI that its docs don't describe.
 
 ## What you need
 
-- Windows 11 PC, iPhone, USB cable
-- A free **GitHub** account
-- An **Apple ID**. Use a secondary one for sideloading if you have it. You type it into the sideloading tool yourself; it never goes into the code or to me.
+- Windows PC: 64-bit, and not Windows 10 on Arm. Needed only for the first SideStore install.
+- iPhone with a passcode, a USB cable, and **Wi-Fi**. SideStore doesn't work over mobile data.
+- An **Apple ID**. You type it into iloader and SideStore yourself; it never goes into the code or to me.
+- The code on GitHub. Each push to `main` builds `Spindle.ipa` in the **Actions** tab.
 
 ---
 
-## 1. Put the code on GitHub (once)
+## 1. Remove the Sideloadly copy (once)
 
-1. On github.com, create a **new public repository** named `spindle`. Don't add a README, .gitignore or licence.
-2. In this project folder, run the commands below (or ask me to do the git part), replacing `YOUR-USERNAME`:
+Delete **Spindle** from your iPhone: long-press the icon, then **Remove App**, then **Delete App**. This lets SideStore register the app fresh with App Groups turned on. It also frees the app slot: a free Apple ID allows 3 apps, and SideStore takes one of them.
 
-```bash
-git init -b main
-```
-```bash
-git add .
-```
-```bash
-git commit -m "M0: pipeline and spin test"
-```
-```bash
-git remote add origin https://github.com/YOUR-USERNAME/spindle.git
-```
-```bash
-git push -u origin main
-```
+## 2. Prepare Windows (once) (docs)
 
-## 2. Let the cloud Mac build it
+1. Install **iTunes**. Apple's version is recommended: <https://www.apple.com/itunes/download/win64>.
+2. Install **iloader** (MSI recommended): <https://iloader.app>.
 
-1. On your repo page, open the **Actions** tab. The **ios** workflow starts on every push.
-2. It runs two jobs: *Core package tests*, then *IPA*. Expect about 10–15 minutes.
-3. When the run is green, open it and scroll to **Artifacts**. Download `Spindle`.
-4. The download is a `.zip`. Unzip it to get `Spindle.ipa`.
+## 3. Prepare the iPhone (once) (docs)
 
-CI is pinned to **Xcode 26.6**, the build confirmed to spin on iOS 27.2.
+1. From the App Store, install **LocalDevVPN**: <https://apps.apple.com/app/localdevvpn/id6755608044>.
+2. Open it and **Connect**, allowing the VPN configuration when asked.
+   - It connects only to your own phone; SideStore uses it to sign apps on the device.
+   - **It must be on whenever SideStore installs, updates or refreshes apps.**
 
-## 3. Prepare Windows (once)
+## 4. Install SideStore (once) (docs)
 
-1. If you have **iTunes** or **iCloud** from the Microsoft Store, uninstall them.
-2. Install **iTunes** and **iCloud** from **apple.com**, the web/desktop installers. Sideloadly requires these versions.
-3. Install **Sideloadly** from [sideloadly.io](https://sideloadly.io).
+1. Connect the iPhone by USB. Unlock it and trust the computer if asked.
+2. Open **iloader** and sign in with your Apple ID. It's case-sensitive.
+3. Select your iPhone, then **Install SideStore (Stable)**.
+4. On the iPhone, go to **Settings › General › VPN & Device Management**. Under *Developer App*, tap your Apple ID, then **Trust**.
+5. **Developer Mode** should already be on from the Sideloadly test. If not: **Settings › Privacy & Security › Developer Mode** → on → restart.
+6. Make sure **LocalDevVPN** is connected, then open **SideStore** and sign in with the same Apple ID.
+7. In **My Apps**, tap the **7 DAYS** counter next to SideStore to refresh it. If asked to revoke or create a certificate, tap **Yes** or **Refresh Now**.
 
-## 4. Prepare the iPhone (once)
+If iloader itself has problems, SideStore's docs send iloader questions to the idevice Discord rather than SideStore's.
 
-1. Connect it by USB, unlock it, and tap **Trust This Computer**.
-2. After the first install (step 5), go to **Settings › Privacy & Security › Developer Mode**, turn it **on**, and restart when asked.
-3. If iOS says the developer isn't trusted, go to **Settings › General › VPN & Device Management**, tap your Apple ID and **Trust** it.
+## 5. Get `Spindle.ipa` onto the iPhone
 
-## 5. Install the test build
+Pick either option:
+- **On the iPhone:** in Safari, open your repo → **Actions** → the latest green **ios** run. Download the **Spindle** artifact (you must be signed in to GitHub). In the Files app, tap the `.zip` to unzip it.
+- **From the PC:** download and unzip the artifact, then put `Spindle.ipa` in iCloud Drive or OneDrive so it appears in the Files app.
 
-1. Open Sideloadly. Your iPhone should appear in the device list.
-2. Drag `Spindle.ipa` onto Sideloadly.
-3. Enter your Apple ID in Sideloadly and press **Start**.
-4. Wait for "Done". The **Spindle** app appears on your Home Screen.
+## 6. Install Spindle with SideStore (not in docs)
 
-## 6. Run the spin test
+1. Make sure **LocalDevVPN** is connected.
+2. Open **SideStore** → **My Apps** → tap **+** (top-left) → choose `Spindle.ipa`.
+3. Wait for it to finish. Spindle appears on your Home Screen.
 
-1. **Open Spindle once.** You'll see the Diagnostics screen.
-2. Go to the Home Screen, long-press an empty area, then **Edit › Add Widget**. Search **Spindle** and add **Spin test**. Add both the **small** and the **medium** size.
-3. **Watch for 10 seconds.** Does the record turn? The white mark on the label makes it obvious.
-   - The small widget turns at 16⅔ RPM.
-   - The medium widget shows 16⅔ and 33⅓ side by side, so you can pick the speed you like.
-4. **Open Spindle again** and check the sections below. Pull down to refresh.
+## 7. Check it worked
 
-| Section | Field | What you should see |
-|---|---|---|
-| Widget | Last widget refresh | A time from a few moments ago |
-| Widget | Spin effect type | Present |
-| App Group | Shared folder | OK ✅ |
-| App Group | Resolved ID | Probably `group.dev.spindlevinyl.shared` followed by something extra; that's normal |
-| Install | Signature expires | About 7 days from now |
+1. Open **Spindle**. In **App Group** you should now see:
 
-## 7. Tell me the results
+   | Field | Expected |
+   |---|---|
+   | Groups in profile | `group.dev.spindlevinyl.shared.<TEAMID>` |
+   | Resolved ID | The same value |
+   | Shared folder | OK ✅ |
 
-Send me:
-- **Spins / doesn't spin** for each build, and which speed looks better.
-- A **screenshot of the Diagnostics screen**.
-- Your **iOS version** (Settings › General › About).
+2. Add the **Spin test** widget (small and medium) to your Home Screen if it's not there.
+3. Re-open Spindle and pull down to refresh. **Widget** should now show **Last widget refresh** with a recent time.
+4. The medium widget's top-left corner should say **Shared folder ✓**.
 
-Re-installing a newer `Spindle.ipa` with the same Apple ID replaces the old one and keeps the same app ID.
+Send me a screenshot of the App Group and Widget sections.
 
 ---
 
-## Weekly re-signing (free Apple ID)
+## Weekly refresh (free Apple ID)
 
-Free signatures last **7 days**. Diagnostics shows the expiry date. Before it runs out, choose one:
-- **Re-install from Sideloadly.** Same file, same Apple ID; takes a minute.
-- **Sideloadly's auto-refresh.** It needs the PC on, on the same Wi-Fi, with Wi-Fi sync enabled in iTunes.
-- **SideStore,** which refreshes on the phone itself. We'll set this up once the real widget exists.
+Signatures last **7 days**; Diagnostics shows the expiry date.
+- SideStore refreshes apps **in the background** on the phone while on Wi-Fi.
+- You can also open SideStore → **My Apps** → tap the days counter.
+- Keep **LocalDevVPN** connected when refreshing.
+
+**Pairing file:** SideStore's docs warn it can expire after an iOS update or reset, or at random. If refreshing starts failing, follow their [pairing file guide](https://docs.sidestore.io/docs/advanced/pairing-file).
+
+## Updating Spindle to a new build
+
+Download the new `Spindle.ipa` and install it the same way: **My Apps → +**, with the VPN connected. It replaces the old version and keeps the same app ID. Don't change bundle IDs: a free Apple ID allows 10 app IDs per 7 days, and Spindle uses 2.
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---|---|
-| Sideloadly doesn't see the iPhone | Unlock the phone, re-plug, re-trust; make sure iTunes is the apple.com version |
-| "Maximum App IDs" / limit errors | A free Apple ID allows 10 app IDs per 7 days; Spindle uses 2. Don't rename the app or change bundle IDs. Wait for the oldest to expire. |
-| "Spin test" not in the widget gallery | Open the Spindle app once, then try again. Restart the phone if needed. |
-| Shared folder shows **Unavailable ❌** | The App Group was lost during signing. Send me the Diagnostics screenshot and the Sideloadly log. |
-| Record shows but doesn't turn | That's a valid test result. Note which build, and send the Diagnostics screenshot. |
-| App won't open after a week | The signature expired. Re-install from Sideloadly. |
+| iloader doesn't see the iPhone | Unlock the phone, re-plug, re-trust; reinstall iTunes from apple.com |
+| SideStore install/refresh fails | Check LocalDevVPN is connected and you're on Wi-Fi; see [SideStore common issues](https://docs.sidestore.io/docs/troubleshooting/common-issues) |
+| "Maximum apps" error | Free accounts allow 3 apps including SideStore; remove an older sideloaded app |
+| Shared folder still **Unavailable ❌** | Send me the Diagnostics screenshot (Groups in profile row) |
+| "Spin test" missing from the widget gallery | Open Spindle once, then try again; restart if needed |
+| App won't open | Signature expired; refresh in SideStore (VPN on) |
 
 ## Optional: run the Core tests on Windows
-
-The `Packages/Core` code (profile parsing, App Group resolution) is plain Swift and runs on Windows:
 
 ```bash
 winget install --id Swift.Toolchain -e --source winget
@@ -118,4 +106,4 @@ winget install --id Swift.Toolchain -e --source winget
 swift test --package-path Packages/Core
 ```
 
-The Swift toolchain needs Visual Studio 2022 Build Tools with the Windows 11 SDK; see swift.org/install/windows. CI runs these tests anyway, so this is only for faster feedback.
+Requires Visual Studio 2022 Build Tools with the Windows 11 SDK; see swift.org/install/windows. CI runs these tests anyway.

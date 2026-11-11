@@ -40,6 +40,7 @@ Full detail: [FEASIBILITY.md §4](docs/FEASIBILITY.md#4-recommended-architecture
 | 2026-11-11 | **No MetricKit / battery-metrics screen**; battery is judged via Settings › Battery | Owner preference; keeps Diagnostics to a simple reload/request log |
 | 2026-11-11 | **Widget buttons: play/pause + skip** (each tap force-refreshes the widget) | Fixes staleness for anything done from the widget; changes made elsewhere are still caught at the ~10 min reload |
 | 2026-11-12 | **CI pinned to Xcode 26.6**; Xcode 27 preview build dropped | Device test: the 26.6 build spins on iOS 27.2 |
+| 2026-11-12 | **Install tool: SideStore** (replaces Sideloadly) | Sideloadly grants no App Group on free accounts (device test 2). SideStore documents App Group support and refreshes on the phone. |
 | 2026-11-12 | **Widget speed: 16⅔ RPM** (3.6 s per turn) | Owner compared 16⅔ vs 33⅓ side by side on the device and preferred the slower one |
 | 2026-11-11 | **Token storage: protected App Group file** (not Keychain) | Can't break on weekly re-signing. Excluded from backup; readable only by app + widget. |
 | 2026-11-11 | **Widget sizes: Small + Medium**, as in the prototype | Owner choice. Small = record + play/pause; Medium = record + track/artist + play/pause + skip |
@@ -88,7 +89,7 @@ See [FEASIBILITY.md §7](docs/FEASIBILITY.md#7-compromises-explicit-not-hidden).
 
 ## Build instructions
 
-See [docs/INSTALL.md](docs/INSTALL.md). In short: push to GitHub → the Actions "ios" workflow builds the IPAs → download the artifact → install with Sideloadly using your free Apple ID. Pipeline research: [06-build-infrastructure.md](docs/research/06-build-infrastructure.md).
+See [docs/INSTALL.md](docs/INSTALL.md). In short: push to GitHub → the Actions "ios" workflow builds the IPAs → download the artifact → install with SideStore using your free Apple ID. Pipeline research: [06-build-infrastructure.md](docs/research/06-build-infrastructure.md).
 
 - **Bundle ID:** `dev.spindlevinyl.app`, widget `dev.spindlevinyl.app.widget`.
 - **App Group:** `group.dev.spindlevinyl.shared`.
