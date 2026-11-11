@@ -42,7 +42,7 @@ We install with **iloader** and a free Apple ID.
 | App Group | Resolved ID | `group.dev.spindlevinyl.app.<TEAMID>` |
 | Widget | Last widget refresh | A recent time; this proves the widget can use the shared folder too |
 
-The medium widget's top-left corner should say **Shared folder ✓**.
+The widget's status line should never say **No shared folder** (shown with an orange dot if the App Group is missing).
 
 ## Optional: refresh when you leave Spotify
 
