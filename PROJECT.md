@@ -107,8 +107,14 @@ See [docs/INSTALL.md](docs/INSTALL.md). In short: push to GitHub → the Actions
 | Signature expiry shown | ✅ 7 days |
 | App Group resolved | ❌ **Not found**; shared folder unavailable; therefore no widget heartbeat |
 
-**Next:** a Diagnostics build that lists the groups in the signing profile, to tell apart these two cases:
-1. Sideloadly grants no App Group on free accounts → switch to **SideStore**, which documents registering `<group>.<TEAMID>`.
-2. A group is granted but not matched → fix the resolver.
+### M0 device test 2 (2026-11-12): same phone, build 2 with profile diagnostics
+
+| Check | Result |
+|---|---|
+| Groups in embedded profile | **none** |
+| ALTAppGroups | none |
+| Profile name | "iOS Team Provisioning Profile: dev.spindlevinyl.app.4K99FM682B" |
+
+**Conclusion:** Sideloadly (free Apple ID) does not enable the App Groups capability, even though the IPA's ad-hoc signature carries the entitlement (verified in CI). This isn't a resolver bug. The fix is to sideload with a tool that documents App Group support (SideStore / AltStore), or to use the paid program.
 
 The 12-scenario matrix will live here from M3 onward.
