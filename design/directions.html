@@ -400,9 +400,14 @@ footer { color: var(--muted); font-size: 13px; }
   function drawPlatter(g, cx, cy, R, a) {
     const Rp = R * 1.075;
     g.save();
-    g.shadowColor = "rgba(0,0,0,0.6)"; g.shadowBlur = R * 0.22; g.shadowOffsetY = R * 0.07;
-    g.fillStyle = "#1a1b1e"; g.beginPath(); g.arc(cx, cy, Rp, 0, TAU); g.fill();
+    g.shadowColor = "rgba(0,0,0,0.6)"; g.shadowBlur = R * 0.22; g.shadowOffsetX = R * 0.05; g.shadowOffsetY = R * 0.09;
+    g.fillStyle = "#0b0b0d"; g.beginPath(); g.arc(cx + R * 0.03, cy + R * 0.05, Rp, 0, TAU); g.fill();
     g.restore();
+    // Side wall: the platter has height, seen on the side away from the light.
+    for (let k = R * 0.06; k > 0; k -= 0.5) {
+      g.fillStyle = k > R * 0.03 ? "#141416" : "#26272b";
+      g.beginPath(); g.arc(cx + k * 0.5, cy + k * 0.85, Rp, 0, TAU); g.fill();
+    }
     const metal = g.createConicGradient(-0.6, cx, cy);
     [[0, "#8c8f96"], [0.12, "#3a3c41"], [0.3, "#6d7077"], [0.5, "#9b9ea5"], [0.62, "#3b3d42"], [0.8, "#6a6d74"], [1, "#8c8f96"]].forEach(([p, c]) => metal.addColorStop(p, c));
     g.fillStyle = metal; g.beginPath(); g.arc(cx, cy, Rp, 0, TAU); g.arc(cx, cy, R * 1.005, 0, TAU, true); g.fill();
@@ -415,9 +420,10 @@ footer { color: var(--muted); font-size: 13px; }
   }
 
   // ---------- Tonearm ----------
-  // Real anatomy: counterweight behind the pivot, bearing housing, round tube, offset
-  // headshell with cartridge and finger lift. "classic" is polished metal (Turntable);
-  // "minimal" is a matte single-colour version (Clean glass). t = 1 on the record, 0 lifted.
+  // Real anatomy with depth cues: a soft cast shadow that drifts further away as the arm
+  // lifts, cylinder lighting on the tube and counterweight, a raised bearing tower, and a
+  // headshell with visible thickness. Light comes from the upper left.
+  // "classic" = polished metal (Turntable); "minimal" = matte single colour (Clean glass).
   function drawArm(g, W, cx, cy, R, t, o) {
     const classic = o.variant === "classic";
     const P = [o.pivot[0] * W, o.pivot[1] * W];
@@ -425,88 +431,118 @@ footer { color: var(--muted); font-size: 13px; }
     const L = Math.hypot(target[0] - P[0], target[1] - P[1]);
     const playAng = Math.atan2(target[1] - P[1], target[0] - P[0]);
     const ang = playAng - (1 - t) * o.lift;
-    const S = [P[0] + Math.cos(ang) * L, P[1] + Math.sin(ang) * L];      // stylus tip
-    const hsAng = ang + o.offset;                                         // headshell offset
+    const S = [P[0] + Math.cos(ang) * L, P[1] + Math.sin(ang) * L];
+    const hsAng = ang + o.offset;
     const hsLen = R * 0.21;
     const E = [S[0] - Math.cos(hsAng) * hsLen * 0.82, S[1] - Math.sin(hsAng) * hsLen * 0.82];
     const tubeAng = Math.atan2(E[1] - P[1], E[0] - P[0]);
     const tubeLen = Math.hypot(E[0] - P[0], E[1] - P[1]);
     const w = R * o.tube;
+    const cwH = w * (classic ? 2.9 : 2.3), cwX = -R * 0.3, cwLen = R * 0.2;
+    const hsW = R * (classic ? 0.095 : 0.08);
+    const baseR = R * (classic ? 0.16 : 0.12);
+    const raised = 1 - t;                                   // 0 = on the record, 1 = lifted
+    const elev = R * (0.05 + 0.08 * raised);                // height above the record
+    const sdx = elev * 0.65, sdy = elev;                    // shadow falls to the lower right
+
     const ink = o.light ? [42, 43, 48] : [236, 237, 241];
-    const inkCss = (a, k = 1) => `rgba(${Math.round(ink[0] * k)}, ${Math.round(ink[1] * k)}, ${Math.round(ink[2] * k)}, ${a})`;
-
-    // Arm rest post (where the arm parks when lifted).
-    if (classic) {
-      const rest = [P[0] + Math.cos(playAng - o.lift) * L * 0.66, P[1] + Math.sin(playAng - o.lift) * L * 0.66];
-      g.save();
-      g.shadowColor = "rgba(0,0,0,0.5)"; g.shadowBlur = R * 0.05; g.shadowOffsetY = R * 0.02;
-      const post = g.createRadialGradient(rest[0] - R * 0.015, rest[1] - R * 0.015, 0, rest[0], rest[1], R * 0.05);
-      post.addColorStop(0, "#9a9da4"); post.addColorStop(1, "#2a2b2f");
-      g.fillStyle = post; g.beginPath(); g.arc(rest[0], rest[1], R * 0.05, 0, TAU); g.fill();
-      g.restore();
-    }
-
-    const shadow = () => {
-      g.shadowColor = "rgba(0,0,0,0.42)"; g.shadowBlur = R * 0.06;
-      g.shadowOffsetX = R * 0.035; g.shadowOffsetY = R * 0.06;
-    };
-    const across = (len, stops) => {                    // gradient across a part's width
-      const gr = g.createLinearGradient(0, -len / 2, 0, len / 2);
+    const inkCss = (a, k = 1) => `rgba(${Math.min(255, Math.round(ink[0] * k))}, ${Math.min(255, Math.round(ink[1] * k))}, ${Math.min(255, Math.round(ink[2] * k))}, ${a})`;
+    const across = (h, stops) => {
+      const gr = g.createLinearGradient(0, -h / 2, 0, h / 2);
       stops.forEach(([pos, col]) => gr.addColorStop(pos, col));
       return gr;
     };
-    const chrome = [[0, "#4b4e55"], [0.28, "#f4f5f7"], [0.5, "#b9bcc3"], [0.78, "#6d7078"], [1, "#3a3c41"]];
-    const matte = [[0, inkCss(1, 0.78)], [0.3, inkCss(1, 1.0)], [1, inkCss(1, 0.82)]];
+    // Cylinder lighting: dark rim, bright specular band, darker core, reflected light below.
+    const chrome = [[0, "#2b2d31"], [0.16, "#7e8189"], [0.3, "#ffffff"], [0.4, "#d9dbe0"], [0.68, "#6b6e76"], [0.86, "#a3a6ad"], [1, "#2e3034"]];
+    const satin = [[0, "#1c1d20"], [0.25, "#9fa2a9"], [0.38, "#e3e5e9"], [0.6, "#55585f"], [0.85, "#7c7f86"], [1, "#1e1f22"]];
+    const matte = [[0, inkCss(1, 0.68)], [0.3, inkCss(1, 1.08)], [0.45, inkCss(1, 1.0)], [0.85, inkCss(1, 0.8)], [1, inkCss(1, 0.66)]];
+    const inFrame = (ox, oy, rot, draw) => { g.save(); g.translate(ox, oy); g.rotate(rot); draw(); g.restore(); };
+    const toLocal = (dx, dy, rot) => [dx * Math.cos(rot) + dy * Math.sin(rot), -dx * Math.sin(rot) + dy * Math.cos(rot)];
 
-    // Counterweight and tube share the tube's frame.
+    // 1. Base plate shadow, then the arm's cast shadow (soft, detached from the arm).
     g.save();
-    g.translate(P[0], P[1]); g.rotate(tubeAng);
-    shadow();
-    const cwH = w * (classic ? 2.9 : 2.3);
-    g.fillStyle = across(cwH, classic ? [[0, "#2c2d31"], [0.3, "#a6a9b0"], [0.55, "#5d6067"], [1, "#1f2023"]] : matte);
-    g.beginPath(); g.roundRect(-R * 0.3, -cwH / 2, R * 0.2, cwH, w * 0.5); g.fill();
-    g.fillStyle = across(w, classic ? chrome : matte);
-    g.beginPath(); g.roundRect(-R * 0.1, -w / 2, tubeLen + R * 0.1, w, w / 2); g.fill();
-    g.shadowColor = "transparent";
+    g.filter = `blur(${Math.max(1, R * 0.025)}px)`;
+    g.fillStyle = "rgba(0,0,0,0.5)";
+    g.beginPath(); g.arc(P[0] + R * 0.025, P[1] + R * 0.035, baseR, 0, TAU); g.fill();
+    g.filter = `blur(${Math.max(1, R * (0.025 + 0.035 * raised))}px)`;
+    g.fillStyle = `rgba(0,0,0,${0.45 - 0.15 * raised})`;
+    inFrame(P[0] + sdx, P[1] + sdy, tubeAng, () => {
+      g.beginPath(); g.roundRect(cwX, -cwH / 2, cwLen, cwH, w * 0.5); g.roundRect(-R * 0.1, -w / 2, tubeLen + R * 0.1, w, w / 2); g.fill();
+    });
+    inFrame(E[0] + sdx, E[1] + sdy, hsAng, () => { g.beginPath(); g.roundRect(-w * 0.4, -hsW / 2, hsLen, hsW, R * 0.018); g.fill(); });
+    g.restore();
+
+    // 2. Arm rest post (classic): a short cylinder.
     if (classic) {
-      g.strokeStyle = "rgba(0,0,0,0.35)"; g.lineWidth = 1;
-      for (let k = 1; k < 4; k++) { const x = -R * 0.3 + (R * 0.2 * k) / 4; g.beginPath(); g.moveTo(x, -cwH / 2 + 1); g.lineTo(x, cwH / 2 - 1); g.stroke(); }
+      const rest = [P[0] + Math.cos(playAng - o.lift) * L * 0.66, P[1] + Math.sin(playAng - o.lift) * L * 0.66];
+      const pr = R * 0.045;
+      for (let k = R * 0.05; k > 0; k -= 0.5) { g.fillStyle = "#151518"; g.beginPath(); g.arc(rest[0] + k * 0.6, rest[1] + k, pr, 0, TAU); g.fill(); }
+      const cap = g.createRadialGradient(rest[0] - pr * 0.4, rest[1] - pr * 0.4, 0, rest[0], rest[1], pr);
+      cap.addColorStop(0, "#d6d8dd"); cap.addColorStop(1, "#3b3d42");
+      g.fillStyle = cap; g.beginPath(); g.arc(rest[0], rest[1], pr, 0, TAU); g.fill();
     }
-    g.restore();
 
-    // Headshell, cartridge and finger lift, in the headshell's frame.
-    g.save();
-    g.translate(E[0], E[1]); g.rotate(hsAng);
-    shadow();
-    const hsW = R * (classic ? 0.095 : 0.08);
-    g.fillStyle = classic ? across(hsW, [[0, "#3a3b40"], [0.35, "#26272b"], [1, "#151518"]]) : across(hsW, matte);
-    g.beginPath(); g.roundRect(-w * 0.4, -hsW / 2, hsLen, hsW, R * 0.018); g.fill();
-    g.shadowColor = "transparent";
-    g.fillStyle = classic ? "#0d0d0f" : inkCss(1, 0.7);
-    g.beginPath(); g.roundRect(hsLen * 0.42, -hsW * 0.34, hsLen * 0.5, hsW * 0.68, R * 0.01); g.fill();
-    if (classic) { g.fillStyle = "#c8a44a"; g.fillRect(hsLen * 0.45, -hsW * 0.34, hsLen * 0.06, hsW * 0.68); }
-    g.strokeStyle = classic ? "#c9ccd3" : inkCss(1, 0.9);
-    g.lineCap = "round"; g.lineWidth = Math.max(R * 0.018, 1);
-    g.beginPath(); g.moveTo(hsLen * 0.86, -hsW / 2); g.quadraticCurveTo(hsLen * 1.02, -hsW * 0.75, hsLen * 1.06, -hsW * 1.25); g.stroke();
-    g.strokeStyle = "rgba(255,255,255,0.22)"; g.lineWidth = 1;
-    g.beginPath(); g.moveTo(-w * 0.2, -hsW / 2 + 0.75); g.lineTo(hsLen * 0.8, -hsW / 2 + 0.75); g.stroke();
-    g.restore();
+    // 3. Base plate on the plinth, with a lit bevel.
+    const bevel = g.createLinearGradient(P[0] - baseR, P[1] - baseR, P[0] + baseR, P[1] + baseR);
+    if (classic) { bevel.addColorStop(0, "#4a4c52"); bevel.addColorStop(0.5, "#1d1e21"); bevel.addColorStop(1, "#0c0c0e"); }
+    else { bevel.addColorStop(0, inkCss(1, 1.06)); bevel.addColorStop(1, inkCss(1, 0.62)); }
+    g.fillStyle = bevel; g.beginPath(); g.arc(P[0], P[1], baseR, 0, TAU); g.fill();
+    g.fillStyle = classic ? "#1a1b1e" : inkCss(1, 0.86);
+    g.beginPath(); g.arc(P[0], P[1], baseR * 0.84, 0, TAU); g.fill();
 
-    // Pivot base with bearing housing and cap.
-    g.save();
-    shadow();
-    const baseR = R * (classic ? 0.16 : 0.12);
-    g.fillStyle = classic ? "#18191c" : inkCss(1, o.light ? 1.2 : 0.55);
-    g.beginPath(); g.arc(P[0], P[1], baseR, 0, TAU); g.fill();
-    g.restore();
-    const housing = g.createRadialGradient(P[0] - baseR * 0.3, P[1] - baseR * 0.35, 0, P[0], P[1], baseR * 0.7);
-    if (classic) { housing.addColorStop(0, "#f2f3f5"); housing.addColorStop(0.5, "#9c9fa6"); housing.addColorStop(1, "#4a4c52"); }
-    else { housing.addColorStop(0, inkCss(1, 1.0)); housing.addColorStop(1, inkCss(1, 0.8)); }
-    g.fillStyle = housing; g.beginPath(); g.arc(P[0], P[1], baseR * 0.66, 0, TAU); g.fill();
-    g.strokeStyle = classic ? "rgba(0,0,0,0.45)" : inkCss(0.5, 0.6); g.lineWidth = 1;
-    g.beginPath(); g.arc(P[0], P[1], baseR * 0.66, 0, TAU); g.stroke();
-    g.fillStyle = classic ? "#2a2b2f" : inkCss(1, 0.65);
-    g.beginPath(); g.arc(P[0], P[1], baseR * 0.22, 0, TAU); g.fill();
+    // 4. Counterweight: cylinder with knurled bands and a visible end face.
+    inFrame(P[0], P[1], tubeAng, () => {
+      g.fillStyle = across(cwH, classic ? satin : matte);
+      g.beginPath(); g.roundRect(cwX, -cwH / 2, cwLen, cwH, w * 0.35); g.fill();
+      if (classic) {
+        g.strokeStyle = "rgba(0,0,0,0.4)"; g.lineWidth = 1;
+        for (let k = 1; k < 7; k++) { const x = cwX + cwLen * 0.45 + (cwLen * 0.5 * k) / 7; g.beginPath(); g.moveTo(x, -cwH / 2 + 1); g.lineTo(x, cwH / 2 - 1); g.stroke(); }
+      }
+      const face = g.createRadialGradient(cwX - cwH * 0.05, -cwH * 0.2, 0, cwX, 0, cwH / 2);
+      face.addColorStop(0, classic ? "#c9ccd2" : inkCss(1, 1.05)); face.addColorStop(1, classic ? "#2a2b2f" : inkCss(1, 0.6));
+      g.fillStyle = face; g.beginPath(); g.ellipse(cwX, 0, cwH * 0.16, cwH / 2, 0, 0, TAU); g.fill();
+
+      // 5. Tube: round, with a crisp specular line along the top.
+      g.fillStyle = across(w, classic ? chrome : matte);
+      g.beginPath(); g.roundRect(-R * 0.1, -w / 2, tubeLen + R * 0.1, w, w / 2); g.fill();
+      g.strokeStyle = classic ? "rgba(255,255,255,0.85)" : inkCss(0.5, 1.15);
+      g.lineWidth = Math.max(w * 0.12, 0.6); g.lineCap = "round";
+      g.beginPath(); g.moveTo(R * 0.02, -w * 0.18); g.lineTo(tubeLen - w, -w * 0.18); g.stroke();
+    });
+
+    // 6. Bearing tower: extruded cylinder rising from the base, cap on top.
+    const towerR = baseR * 0.55, towerH = R * (classic ? 0.07 : 0.05);
+    for (let k = towerH; k > 0; k -= 0.5) {
+      g.fillStyle = classic ? "#2a2c30" : inkCss(1, 0.6);
+      g.beginPath(); g.arc(P[0] + k * 0.6, P[1] + k, towerR, 0, TAU); g.fill();
+    }
+    const cap = g.createRadialGradient(P[0] - towerR * 0.4, P[1] - towerR * 0.45, 0, P[0], P[1], towerR);
+    if (classic) { cap.addColorStop(0, "#ffffff"); cap.addColorStop(0.35, "#c3c6cc"); cap.addColorStop(1, "#4a4c52"); }
+    else { cap.addColorStop(0, inkCss(1, 1.12)); cap.addColorStop(1, inkCss(1, 0.78)); }
+    g.fillStyle = cap; g.beginPath(); g.arc(P[0], P[1], towerR, 0, TAU); g.fill();
+    g.fillStyle = classic ? "#222327" : inkCss(1, 0.6);
+    g.beginPath(); g.arc(P[0], P[1], towerR * 0.32, 0, TAU); g.fill();
+
+    // 7. Headshell and cartridge with visible thickness, then the finger lift.
+    const th = R * 0.028;
+    const local = toLocal(th * 0.6, th, hsAng);
+    const sx = local[0], sy = local[1];
+    inFrame(E[0], E[1], hsAng, () => {
+      g.fillStyle = classic ? "#060607" : inkCss(1, 0.5);
+      g.beginPath(); g.roundRect(-w * 0.4 + sx, -hsW / 2 + sy, hsLen, hsW, R * 0.018); g.fill();
+      g.fillStyle = classic ? across(hsW, [[0, "#4a4b51"], [0.3, "#2b2c31"], [1, "#16171a"]]) : across(hsW, matte);
+      g.beginPath(); g.roundRect(-w * 0.4, -hsW / 2, hsLen, hsW, R * 0.018); g.fill();
+      g.fillStyle = classic ? "#030304" : inkCss(1, 0.45);
+      g.beginPath(); g.roundRect(hsLen * 0.42 + sx * 0.6, -hsW * 0.34 + sy * 0.6, hsLen * 0.5, hsW * 0.68, R * 0.01); g.fill();
+      g.fillStyle = classic ? "#121214" : inkCss(1, 0.7);
+      g.beginPath(); g.roundRect(hsLen * 0.42, -hsW * 0.34, hsLen * 0.5, hsW * 0.68, R * 0.01); g.fill();
+      if (classic) { g.fillStyle = "#c8a44a"; g.fillRect(hsLen * 0.45, -hsW * 0.34, hsLen * 0.06, hsW * 0.68); }
+      g.strokeStyle = "rgba(255,255,255,0.3)"; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(-w * 0.2, -hsW / 2 + 0.75); g.lineTo(hsLen * 0.8, -hsW / 2 + 0.75); g.stroke();
+      g.strokeStyle = classic ? "#d4d7dd" : inkCss(1, 0.95);
+      g.lineCap = "round"; g.lineWidth = Math.max(R * 0.018, 1);
+      g.beginPath(); g.moveTo(hsLen * 0.86, -hsW / 2); g.quadraticCurveTo(hsLen * 1.02, -hsW * 0.75, hsLen * 1.06, -hsW * 1.25); g.stroke();
+    });
   }
 
   function drawInscribed(g, cx, cy, labelR, img) {
@@ -548,6 +584,9 @@ footer { color: var(--muted); font-size: 13px; }
     if (v.kind === "float" || v.kind === "clean") {
       g.save(); g.shadowColor = v.kind === "clean" ? "rgba(0,0,0,0.35)" : "rgba(0,0,0,0.55)"; g.shadowBlur = R * (v.kind === "clean" ? 0.16 : 0.28); g.shadowOffsetY = R * (v.kind === "clean" ? 0.05 : 0.1);
       g.fillStyle = "#000"; g.beginPath(); g.arc(cx, cy, R * 0.98, 0, TAU); g.fill(); g.restore();
+    }
+    if (v.kind !== "flat") {
+      for (let k = R * 0.025; k > 0; k -= 0.5) { g.fillStyle = "#050506"; g.beginPath(); g.arc(cx + k * 0.5, cy + k * 0.85, R, 0, TAU); g.fill(); }
     }
     g.drawImage(t.disc, cx - R, cy - R, R * 2, R * 2);
     g.save(); g.translate(cx, cy); g.rotate(a); g.drawImage(t.rot, -R, -R, R * 2, R * 2); g.restore();
