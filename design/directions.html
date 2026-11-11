@@ -414,29 +414,99 @@ footer { color: var(--muted); font-size: 13px; }
     g.strokeStyle = "rgba(255,255,255,0.35)"; g.lineWidth = 1; g.beginPath(); g.arc(cx, cy, Rp - 0.5, -2.7, -1.6); g.stroke();
   }
 
-  function drawTonearm(g, W, cx, cy, R, t, dark) {
-    const P = [W * 0.86, W * 0.14];
-    const H = [cx + R * 0.66, cy - R * 0.12];
-    const L = Math.hypot(H[0] - P[0], H[1] - P[1]);
-    const play = Math.atan2(H[1] - P[1], H[0] - P[0]);
-    const ang = play - (1 - t) * 0.42;
-    const hx = P[0] + Math.cos(ang) * L, hy = P[1] + Math.sin(ang) * L;
-    const metal = dark ? "#c9ccd3" : "#8d9097";
+  // ---------- Tonearm ----------
+  // Real anatomy: counterweight behind the pivot, bearing housing, round tube, offset
+  // headshell with cartridge and finger lift. "classic" is polished metal (Turntable);
+  // "minimal" is a matte single-colour version (Clean glass). t = 1 on the record, 0 lifted.
+  function drawArm(g, W, cx, cy, R, t, o) {
+    const classic = o.variant === "classic";
+    const P = [o.pivot[0] * W, o.pivot[1] * W];
+    const target = [cx + R * o.reach[0], cy + R * o.reach[1]];
+    const L = Math.hypot(target[0] - P[0], target[1] - P[1]);
+    const playAng = Math.atan2(target[1] - P[1], target[0] - P[0]);
+    const ang = playAng - (1 - t) * o.lift;
+    const S = [P[0] + Math.cos(ang) * L, P[1] + Math.sin(ang) * L];      // stylus tip
+    const hsAng = ang + o.offset;                                         // headshell offset
+    const hsLen = R * 0.21;
+    const E = [S[0] - Math.cos(hsAng) * hsLen * 0.82, S[1] - Math.sin(hsAng) * hsLen * 0.82];
+    const tubeAng = Math.atan2(E[1] - P[1], E[0] - P[0]);
+    const tubeLen = Math.hypot(E[0] - P[0], E[1] - P[1]);
+    const w = R * o.tube;
+    const ink = o.light ? [42, 43, 48] : [236, 237, 241];
+    const inkCss = (a, k = 1) => `rgba(${Math.round(ink[0] * k)}, ${Math.round(ink[1] * k)}, ${Math.round(ink[2] * k)}, ${a})`;
+
+    // Arm rest post (where the arm parks when lifted).
+    if (classic) {
+      const rest = [P[0] + Math.cos(playAng - o.lift) * L * 0.66, P[1] + Math.sin(playAng - o.lift) * L * 0.66];
+      g.save();
+      g.shadowColor = "rgba(0,0,0,0.5)"; g.shadowBlur = R * 0.05; g.shadowOffsetY = R * 0.02;
+      const post = g.createRadialGradient(rest[0] - R * 0.015, rest[1] - R * 0.015, 0, rest[0], rest[1], R * 0.05);
+      post.addColorStop(0, "#9a9da4"); post.addColorStop(1, "#2a2b2f");
+      g.fillStyle = post; g.beginPath(); g.arc(rest[0], rest[1], R * 0.05, 0, TAU); g.fill();
+      g.restore();
+    }
+
+    const shadow = () => {
+      g.shadowColor = "rgba(0,0,0,0.42)"; g.shadowBlur = R * 0.06;
+      g.shadowOffsetX = R * 0.035; g.shadowOffsetY = R * 0.06;
+    };
+    const across = (len, stops) => {                    // gradient across a part's width
+      const gr = g.createLinearGradient(0, -len / 2, 0, len / 2);
+      stops.forEach(([pos, col]) => gr.addColorStop(pos, col));
+      return gr;
+    };
+    const chrome = [[0, "#4b4e55"], [0.28, "#f4f5f7"], [0.5, "#b9bcc3"], [0.78, "#6d7078"], [1, "#3a3c41"]];
+    const matte = [[0, inkCss(1, 0.78)], [0.3, inkCss(1, 1.0)], [1, inkCss(1, 0.82)]];
+
+    // Counterweight and tube share the tube's frame.
     g.save();
-    g.shadowColor = "rgba(0,0,0,0.45)"; g.shadowBlur = R * 0.08; g.shadowOffsetX = R * 0.03; g.shadowOffsetY = R * 0.05;
-    g.lineCap = "round";
-    g.strokeStyle = dark ? "#2a2b2f" : "#5b5d63"; g.lineWidth = R * 0.11;
-    g.beginPath(); g.moveTo(P[0], P[1]); g.lineTo(P[0] - Math.cos(ang) * L * 0.2, P[1] - Math.sin(ang) * L * 0.2); g.stroke();
-    g.strokeStyle = metal; g.lineWidth = R * 0.045;
-    g.beginPath(); g.moveTo(P[0], P[1]); g.lineTo(hx, hy); g.stroke();
-    g.translate(hx, hy); g.rotate(ang + 0.5);
-    g.fillStyle = dark ? "#26272b" : "#45474d";
-    g.fillRect(-R * 0.06, -R * 0.1, R * 0.12, R * 0.2);
+    g.translate(P[0], P[1]); g.rotate(tubeAng);
+    shadow();
+    const cwH = w * (classic ? 2.9 : 2.3);
+    g.fillStyle = across(cwH, classic ? [[0, "#2c2d31"], [0.3, "#a6a9b0"], [0.55, "#5d6067"], [1, "#1f2023"]] : matte);
+    g.beginPath(); g.roundRect(-R * 0.3, -cwH / 2, R * 0.2, cwH, w * 0.5); g.fill();
+    g.fillStyle = across(w, classic ? chrome : matte);
+    g.beginPath(); g.roundRect(-R * 0.1, -w / 2, tubeLen + R * 0.1, w, w / 2); g.fill();
+    g.shadowColor = "transparent";
+    if (classic) {
+      g.strokeStyle = "rgba(0,0,0,0.35)"; g.lineWidth = 1;
+      for (let k = 1; k < 4; k++) { const x = -R * 0.3 + (R * 0.2 * k) / 4; g.beginPath(); g.moveTo(x, -cwH / 2 + 1); g.lineTo(x, cwH / 2 - 1); g.stroke(); }
+    }
     g.restore();
-    const base = g.createRadialGradient(P[0] - R * 0.04, P[1] - R * 0.04, 0, P[0], P[1], R * 0.17);
-    base.addColorStop(0, dark ? "#55575d" : "#d9dbe0"); base.addColorStop(1, dark ? "#1e1f23" : "#8e9198");
-    g.fillStyle = base; g.beginPath(); g.arc(P[0], P[1], R * 0.17, 0, TAU); g.fill();
-    g.fillStyle = metal; g.beginPath(); g.arc(P[0], P[1], R * 0.05, 0, TAU); g.fill();
+
+    // Headshell, cartridge and finger lift, in the headshell's frame.
+    g.save();
+    g.translate(E[0], E[1]); g.rotate(hsAng);
+    shadow();
+    const hsW = R * (classic ? 0.095 : 0.08);
+    g.fillStyle = classic ? across(hsW, [[0, "#3a3b40"], [0.35, "#26272b"], [1, "#151518"]]) : across(hsW, matte);
+    g.beginPath(); g.roundRect(-w * 0.4, -hsW / 2, hsLen, hsW, R * 0.018); g.fill();
+    g.shadowColor = "transparent";
+    g.fillStyle = classic ? "#0d0d0f" : inkCss(1, 0.7);
+    g.beginPath(); g.roundRect(hsLen * 0.42, -hsW * 0.34, hsLen * 0.5, hsW * 0.68, R * 0.01); g.fill();
+    if (classic) { g.fillStyle = "#c8a44a"; g.fillRect(hsLen * 0.45, -hsW * 0.34, hsLen * 0.06, hsW * 0.68); }
+    g.strokeStyle = classic ? "#c9ccd3" : inkCss(1, 0.9);
+    g.lineCap = "round"; g.lineWidth = Math.max(R * 0.018, 1);
+    g.beginPath(); g.moveTo(hsLen * 0.86, -hsW / 2); g.quadraticCurveTo(hsLen * 1.02, -hsW * 0.75, hsLen * 1.06, -hsW * 1.25); g.stroke();
+    g.strokeStyle = "rgba(255,255,255,0.22)"; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(-w * 0.2, -hsW / 2 + 0.75); g.lineTo(hsLen * 0.8, -hsW / 2 + 0.75); g.stroke();
+    g.restore();
+
+    // Pivot base with bearing housing and cap.
+    g.save();
+    shadow();
+    const baseR = R * (classic ? 0.16 : 0.12);
+    g.fillStyle = classic ? "#18191c" : inkCss(1, o.light ? 1.2 : 0.55);
+    g.beginPath(); g.arc(P[0], P[1], baseR, 0, TAU); g.fill();
+    g.restore();
+    const housing = g.createRadialGradient(P[0] - baseR * 0.3, P[1] - baseR * 0.35, 0, P[0], P[1], baseR * 0.7);
+    if (classic) { housing.addColorStop(0, "#f2f3f5"); housing.addColorStop(0.5, "#9c9fa6"); housing.addColorStop(1, "#4a4c52"); }
+    else { housing.addColorStop(0, inkCss(1, 1.0)); housing.addColorStop(1, inkCss(1, 0.8)); }
+    g.fillStyle = housing; g.beginPath(); g.arc(P[0], P[1], baseR * 0.66, 0, TAU); g.fill();
+    g.strokeStyle = classic ? "rgba(0,0,0,0.45)" : inkCss(0.5, 0.6); g.lineWidth = 1;
+    g.beginPath(); g.arc(P[0], P[1], baseR * 0.66, 0, TAU); g.stroke();
+    g.fillStyle = classic ? "#2a2b2f" : inkCss(1, 0.65);
+    g.beginPath(); g.arc(P[0], P[1], baseR * 0.22, 0, TAU); g.fill();
   }
 
   function drawInscribed(g, cx, cy, labelR, img) {
@@ -485,30 +555,8 @@ footer { color: var(--muted); font-size: 13px; }
     if (v.style === "inscribed" && state.fullBleed) drawFullBleed(g, cx, cy, R * v.labelFrac, covers[state.track], a);
     else if (v.style === "inscribed") drawInscribed(g, cx, cy, R * v.labelFrac, covers[state.track]);
     else { g.fillStyle = "#0b0b0d"; g.beginPath(); g.arc(cx, cy, Math.max(R * 0.03, 2), 0, TAU); g.fill(); }
-    if (v.kind === "turntable") drawTonearm(g, W, cx, cy, R, state.arm, !state.light);
-    if (v.kind === "clean") drawCleanArm(g, W, cx, cy, R, state.arm, v.pivot, state.light);
-  }
-
-  // A thin, simple arm: outlined pivot, straight tube, short angled headshell.
-  function drawCleanArm(g, W, cx, cy, R, t, pivot, light) {
-    const P = [pivot[0] * W, pivot[1] * W];
-    const H = [cx + R * 0.62, cy + R * 0.2];
-    const L = Math.hypot(H[0] - P[0], H[1] - P[1]);
-    const play = Math.atan2(H[1] - P[1], H[0] - P[0]);
-    const ang = play - (1 - t) * 0.35;
-    const hx = P[0] + Math.cos(ang) * L, hy = P[1] + Math.sin(ang) * L;
-    const ink = light ? "rgba(30,30,34,0.85)" : "rgba(236,237,241,0.94)";
-    g.save();
-    g.shadowColor = "rgba(0,0,0,0.3)"; g.shadowBlur = R * 0.05; g.shadowOffsetY = R * 0.02;
-    g.strokeStyle = ink; g.lineCap = "round"; g.lineWidth = Math.max(R * 0.028, 1.2);
-    g.beginPath(); g.moveTo(P[0], P[1]); g.lineTo(hx, hy); g.stroke();
-    const hs = ang + 0.6;
-    g.lineWidth = Math.max(R * 0.065, 2);
-    g.beginPath(); g.moveTo(hx, hy); g.lineTo(hx + Math.cos(hs) * R * 0.12, hy + Math.sin(hs) * R * 0.12); g.stroke();
-    g.restore();
-    g.strokeStyle = ink; g.lineWidth = Math.max(R * 0.022, 1);
-    g.beginPath(); g.arc(P[0], P[1], R * 0.1, 0, TAU); g.stroke();
-    g.fillStyle = ink; g.beginPath(); g.arc(P[0], P[1], R * 0.035, 0, TAU); g.fill();
+    if (v.kind === "turntable") drawArm(g, W, cx, cy, R, state.arm, { variant: "classic", pivot: [0.86, 0.14], reach: [0.77, -0.28], lift: 0.42, offset: 0.38, tube: 0.05, light: state.light });
+    if (v.kind === "clean") drawArm(g, W, cx, cy, R, state.arm, { variant: "minimal", pivot: v.pivot, reach: [0.78, -0.16], lift: 0.35, offset: 0.38, tube: 0.036, light: state.light });
   }
 
   // ---------- Widget markup ----------
@@ -618,10 +666,7 @@ footer { color: var(--muted); font-size: 13px; }
   }
 
   function applyZoom(col) {
-    const s = col.querySelector(".scaler");
-    s.style.transform = state.zoom === 1 ? "none" : `scale(${state.zoom})`;
-    s.style.marginBottom = state.zoom === 1 ? "0" : `${(state.zoom - 1) * s.offsetHeight}px`;
-    s.style.marginInline = state.zoom === 1 ? "0" : `${(state.zoom - 1) * 170}px`;
+    col.querySelector(".scaler").style.zoom = String(state.zoom);
   }
 
   const cols = [...document.querySelectorAll(".col")];
