@@ -1,0 +1,751 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vinyl Widget Prototype</title>
+<!--
+  Vinyl now-playing widget — visual prototype (Phase 1, design only).
+  Self-contained: no external files, fonts or libraries. Open in Edge/Chrome.
+  All album art is generated procedurally at load time (abstract shapes) — no third-party artwork.
+  The attribution slot is a neutral placeholder: replace with the official Spotify logo asset in the real app.
+-->
+<style>
+:root{
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --font-round: "SF Pro Rounded", ui-rounded, -apple-system, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --page:#f1f0ec; --panel:#fbfbf9; --ink:#121214; --ink2:rgba(18,18,20,.58); --ink3:rgba(18,18,20,.34);
+  --hair:rgba(0,0,0,.08); --seg:#e6e5e0; --segOn:#ffffff; --segInk:#121214; --spec:#ff2d6f;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --page:#0b0b0c; --panel:#141416; --ink:#f4f4f5; --ink2:rgba(244,244,245,.6); --ink3:rgba(244,244,245,.32);
+    --hair:rgba(255,255,255,.08); --seg:#1e1e21; --segOn:#3a3a3f; --segInk:#f4f4f5;
+  }
+}
+:root[data-theme="dark"]{
+  --page:#0b0b0c; --panel:#141416; --ink:#f4f4f5; --ink2:rgba(244,244,245,.6); --ink3:rgba(244,244,245,.32);
+  --hair:rgba(255,255,255,.08); --seg:#1e1e21; --segOn:#3a3a3f; --segInk:#f4f4f5;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--page);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;transition:background-color .5s ease,color .5s ease}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 16px 48px}
+header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+h1{font-family:var(--font-display);font-size:26px;letter-spacing:-.02em;font-weight:700;margin:0}
+.sub{color:var(--ink2);font-size:13px;margin-top:4px;max-width:640px;line-height:1.45}
+
+/* controls */
+.controls{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;background:var(--panel);border:1px solid var(--hair);border-radius:18px;padding:12px 14px;margin-bottom:18px;position:sticky;top:8px;z-index:20;backdrop-filter:blur(20px)}
+.ctl{display:flex;align-items:center;gap:8px}
+.ctl > span{font-size:11px;color:var(--ink2);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.seg{display:inline-flex;background:var(--seg);border-radius:10px;padding:2px}
+.seg button{all:unset;cursor:pointer;font-size:12.5px;padding:5px 10px;border-radius:8px;color:var(--ink2);font-weight:500;white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--segOn);color:var(--segInk);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.btn{all:unset;cursor:pointer;font-size:13px;font-weight:600;padding:7px 14px;border-radius:999px;background:var(--ink);color:var(--page);display:inline-flex;gap:7px;align-items:center}
+.btn.ghost{background:var(--seg);color:var(--ink)}
+.btn svg{width:12px;height:12px}
+.tog{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink2)}
+.tog i{width:30px;height:18px;border-radius:9px;background:var(--seg);position:relative;transition:background .2s}
+.tog i::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:7px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .2s}
+.tog[aria-pressed="true"] i{background:#34c759}
+.tog[aria-pressed="true"] i::after{transform:translateX(12px)}
+.readout{font:500 11px/1 var(--font-round);color:var(--ink3);font-variant-numeric:tabular-nums;min-width:118px}
+
+/* stage */
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 425px;gap:18px;align-items:start}
+@media (max-width:980px){.stage{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--hair);border-radius:24px;padding:16px;overflow:hidden}
+.panel h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink2);margin:2px 4px 12px;font-weight:600;display:flex;justify-content:space-between}
+.panel h2 em{font-style:normal;color:var(--ink3);text-transform:none;letter-spacing:0;font-weight:500}
+
+/* wallpaper (home screen) */
+.wall{border-radius:18px;padding:34px 0 26px;display:flex;flex-direction:column;align-items:center;gap:26px;position:relative;overflow:hidden;transition:background .6s ease}
+.wall[data-look="light"]{background:linear-gradient(165deg,#e3e6ec 0%,#efebe4 55%,#e7e1d7 100%)}
+.wall[data-look="dark"]{background:radial-gradient(120% 80% at 20% 0%,#1d2027 0%,#0e0f12 60%,#0a0a0b 100%)}
+.wall[data-look="clear"]{background:
+  radial-gradient(60% 50% at 18% 18%,#7b5cff 0%,transparent 70%),
+  radial-gradient(55% 45% at 85% 30%,#ff7a59 0%,transparent 70%),
+  radial-gradient(70% 60% at 50% 100%,#1fb5a6 0%,transparent 70%),#1a1c3b}
+.wall[data-look="tinted"]{background:
+  radial-gradient(60% 50% at 18% 18%,#3a3226 0%,transparent 70%),
+  radial-gradient(55% 45% at 85% 30%,#4a3420 0%,transparent 70%),
+  radial-gradient(70% 60% at 50% 100%,#23302c 0%,transparent 70%),#141312}
+.grid{display:grid;grid-template-columns:158px 158px;gap:22px;justify-items:center}
+.grid .span2{grid-column:span 2}
+.cell{display:flex;flex-direction:column;align-items:center;gap:6px}
+.cell small{font-size:11px;font-weight:500;color:rgba(255,255,255,.85);text-shadow:0 1px 2px rgba(0,0,0,.35)}
+.wall[data-look="light"] .cell small{color:rgba(0,0,0,.6);text-shadow:none}
+
+.widget{position:relative;border-radius:22px;overflow:hidden;transition:background-color .6s ease,box-shadow .6s ease;isolation:isolate}
+.widget canvas{position:absolute;inset:0;display:block}
+.w-small{width:158px;height:158px}
+.w-medium{width:338px;height:158px}
+.wall[data-look="light"] .widget{box-shadow:0 1px 2px rgba(0,0,0,.06),0 6px 20px rgba(0,0,0,.06)}
+.wall[data-look="clear"] .widget{background:rgba(255,255,255,.10)!important;backdrop-filter:blur(22px) saturate(1.5);-webkit-backdrop-filter:blur(22px) saturate(1.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 0 0 1px rgba(255,255,255,.16),0 8px 24px rgba(0,0,0,.18)}
+.wall[data-look="tinted"] .widget{background:rgba(242,200,121,.10)!important;backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);box-shadow:inset 0 1px 0 rgba(255,236,190,.28),inset 0 0 0 1px rgba(242,200,121,.18)}
+
+/* widget text */
+.wtext{position:absolute;color:var(--wInk);transition:opacity .22s ease}
+.wtext.fading{opacity:0}
+.m-meta{left:204px;top:16px;right:16px;bottom:16px;display:flex;flex-direction:column}
+.m-title{font:600 15px/1.22 var(--font);letter-spacing:-.01em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.m-artist{font:400 13px/1.3 var(--font);color:var(--wInk2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-foot{margin-top:auto;display:flex;flex-direction:column;gap:7px}
+.m-status{font:600 11px/1 var(--font-round);color:var(--wInk2);display:flex;align-items:center;gap:5px;letter-spacing:.01em}
+.m-status svg{width:9px;height:9px}
+.logo{display:inline-flex;align-items:center;gap:5px;font:700 13px/1 var(--font);letter-spacing:-.01em;color:var(--wInk);height:21px}
+.logo i{width:21px;height:21px;border-radius:50%;border:1.5px solid currentColor;opacity:.9;position:relative;flex:none}
+.logo i::after{content:"";position:absolute;inset:5.5px;border-radius:50%;background:currentColor;opacity:.85}
+.s-status{left:13px;bottom:16px;font:600 11px/1 var(--font-round);color:var(--wInk2);display:flex;align-items:center;gap:4px}
+.s-status svg{width:9px;height:9px}
+.s-logo{position:absolute;width:21px;height:21px;border-radius:50%;border:1.5px solid var(--wInk);opacity:.85}
+.s-logo::after{content:"";position:absolute;inset:5px;border-radius:50%;background:var(--wInk);opacity:.85}
+
+/* lock screen */
+.lock{width:100%;border-radius:18px;padding:22px 0 26px;display:flex;flex-direction:column;align-items:center;position:relative;overflow:hidden;
+  background:radial-gradient(70% 60% at 30% 10%,#3a2f6b 0%,transparent 70%),radial-gradient(60% 60% at 90% 80%,#0f5a55 0%,transparent 70%),#0d0e1a;color:#fff}
+.lock .date{font:600 15px/1 var(--font);opacity:.9}
+.lock .clock{font:700 76px/1 var(--font-round);letter-spacing:-.02em;margin:4px 0 14px;opacity:.95}
+.lock .acc{display:flex;gap:14px;align-items:center}
+.acc-c{width:72px;height:72px;position:relative}
+.acc-r{width:160px;height:72px;position:relative}
+.acc-c canvas,.acc-r canvas{position:absolute;inset:0}
+.acc-r .t{position:absolute;left:66px;top:12px;right:2px;font:600 13px/1.25 var(--font);color:rgba(255,255,255,.95);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acc-r .a{position:absolute;left:66px;top:30px;right:2px;font:400 13px/1.25 var(--font);color:rgba(255,255,255,.62);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acc-r .b{position:absolute;left:66px;right:6px;top:54px;height:3px;border-radius:2px;background:rgba(255,255,255,.22)}
+.acc-r .b i{display:block;height:100%;border-radius:2px;background:rgba(255,255,255,.9);width:0}
+
+/* app screen */
+.phone{width:393px;max-width:100%;height:800px;margin:0 auto;border-radius:48px;position:relative;overflow:hidden;transition:background-color .6s ease;
+  box-shadow:0 0 0 1px var(--hair),0 0 0 9px #050506,0 0 0 10px rgba(255,255,255,.08),0 30px 60px rgba(0,0,0,.25);color:var(--aInk)}
+.phone .sb{position:absolute;top:0;left:0;right:0;height:54px;display:flex;justify-content:space-between;align-items:center;padding:6px 34px 0 44px;font:600 16px/1 var(--font)}
+.phone .island{position:absolute;top:11px;left:50%;width:124px;height:36px;margin-left:-62px;background:#000;border-radius:20px}
+.phone .sb .ic{display:flex;gap:6px;align-items:center}
+.phone .hdr{position:absolute;top:62px;left:20px;right:20px;height:36px;display:flex;align-items:center;justify-content:space-between}
+.iconbtn{width:36px;height:36px;border-radius:18px;display:grid;place-items:center;background:var(--aFill);color:var(--aInk)}
+.iconbtn svg{width:16px;height:16px}
+.hdr .src{display:flex;flex-direction:column;align-items:center;gap:3px}
+.hdr .src span{font:600 10px/1 var(--font-round);letter-spacing:.08em;text-transform:uppercase;color:var(--aInk2)}
+.hdr .src .logo{color:var(--aInk);height:18px;font-size:12px}
+.hdr .src .logo i{width:18px;height:18px}
+.hdr .src .logo i::after{inset:4.5px}
+#appCanvas{position:absolute;left:0;top:112px;width:393px;height:352px}
+.a-meta{position:absolute;left:28px;right:28px;top:484px}
+.a-title{font:700 22px/1.2 var(--font-display);letter-spacing:-.015em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.a-artist{font:400 17px/1.3 var(--font);color:var(--aInk2);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.a-prog{position:absolute;left:28px;right:28px;top:560px;transition:opacity .3s}
+.a-bar{height:4px;border-radius:2px;background:var(--aFill2);overflow:hidden}
+.a-bar i{display:block;height:100%;width:0;background:var(--aInk);opacity:.82;border-radius:2px}
+.a-times{display:flex;justify-content:space-between;margin-top:8px;font:500 12px/1 var(--font-round);color:var(--aInk2);font-variant-numeric:tabular-nums}
+.a-play{position:absolute;left:50%;top:614px;width:72px;height:72px;margin-left:-36px;border-radius:36px;background:var(--aFill);display:grid;place-items:center;cursor:pointer;border:0;color:var(--aInk);transition:transform .15s ease,background-color .6s}
+.a-play:active{transform:scale(.94)}
+.a-play svg{width:26px;height:26px}
+.a-open{position:absolute;left:50%;top:716px;transform:translateX(-50%);height:40px;padding:0 20px;border-radius:20px;border:1px solid var(--aFill2);display:flex;align-items:center;gap:8px;font:700 12px/1 var(--font);letter-spacing:.09em;color:var(--aInk);white-space:nowrap}
+.a-open i{width:16px;height:16px;border-radius:50%;border:1.5px solid currentColor;position:relative}
+.a-open i::after{content:"";position:absolute;inset:3.5px;border-radius:50%;background:currentColor}
+.home-ind{position:absolute;bottom:8px;left:50%;width:134px;height:5px;margin-left:-67px;border-radius:3px;background:var(--aInk);opacity:.85}
+
+/* spec overlays */
+.specsvg{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .2s;z-index:5;overflow:visible}
+body.spec .specsvg{opacity:1}
+.specsvg *{vector-effect:non-scaling-stroke}
+.legend{margin-top:18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.legend div{background:var(--panel);border:1px solid var(--hair);border-radius:16px;padding:12px 14px;font-size:12.5px;line-height:1.5;color:var(--ink2)}
+.legend b{color:var(--ink);font-weight:600;display:block;margin-bottom:3px;font-size:13px}
+footer{margin-top:20px;font-size:11.5px;color:var(--ink3);line-height:1.5}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Vinyl widget prototype</h1>
+      <div class="sub">Phase-1 look &amp; motion study. Widgets at true iPhone point sizes (393-pt-wide device), in-app hero at 320 pt. The grooves and sheen stay still; only the label and a faint pressing irregularity rotate.</div>
+    </div>
+    <div class="readout" id="readout">ω 0.0 rpm</div>
+  </header>
+
+  <div class="controls" role="toolbar" aria-label="Prototype controls">
+    <button class="btn" id="playBtn" aria-label="Play or pause"></button>
+    <button class="btn ghost" id="nextBtn"><svg viewBox="0 0 12 12"><path d="M1 1.5v9l6.5-4.5zM8.5 1.5h2v9h-2z" fill="currentColor"/></svg>Next track</button>
+    <div class="ctl"><span>Look</span><div class="seg" data-key="look">
+      <button data-val="light">Light</button><button data-val="dark">Dark</button><button data-val="clear">Clear</button><button data-val="tinted">Tinted</button></div></div>
+    <div class="ctl"><span>Label</span><div class="seg" data-key="label">
+      <button data-val="print" title="Full square art inscribed in a colour-matched label (no crop)">Inscribed</button><button data-val="full" title="Art cropped to a circle (non-compliant, personal option)">Full-bleed</button><button data-val="still" title="Inscribed art that stays upright and still; only the disc and run-out etching turn (strictest reading of the artwork rules)">Still</button><button data-val="plain" title="Colour label, art shown only on sleeve">Plain</button></div></div>
+    <div class="ctl"><span>State</span><div class="seg" data-key="state">
+      <button data-val="live">Track</button><button data-val="noart">No art</button><button data-val="idle">Idle</button><button data-val="off">Signed out</button></div></div>
+    <div class="ctl"><span>Speed</span><div class="seg" data-key="speed">
+      <button data-val="200">33⅓</button><button data-val="270">45</button></div></div>
+    <button class="tog" data-tog="artColor" aria-pressed="true"><i></i>Art in colour (clear/tinted)</button>
+    <button class="tog" data-tog="reduce" aria-pressed="false"><i></i>Reduce Motion</button>
+    <button class="tog" data-tog="spec" aria-pressed="false"><i></i>Spec overlay</button>
+  </div>
+
+  <div class="stage">
+    <section class="panel">
+      <h2>Home Screen <em id="lookNote">Dark appearance</em></h2>
+      <div class="wall" id="wall" data-look="dark">
+        <div class="grid">
+          <div class="cell"><div class="widget w-small" id="wSmall"><canvas></canvas>
+            <div class="wtext s-status" id="sStatus"></div><div class="s-logo" style="right:11px;bottom:11px"></div></div><small>Record · small</small></div>
+          <div class="cell"><div class="widget w-small" id="wSleeve"><canvas></canvas>
+            <div class="s-logo" style="right:11px;bottom:11px"></div></div><small>Sleeve · small</small></div>
+          <div class="cell span2"><div class="widget w-medium" id="wMedium"><canvas></canvas>
+            <div class="wtext m-meta" id="mMeta"><div class="m-title" id="mTitle"></div><div class="m-artist" id="mArtist"></div>
+              <div class="m-foot"><div class="m-status" id="mStatus"></div><div class="logo"><i></i>Spotify</div></div></div>
+          </div><small>Sleeve · medium</small></div>
+        </div>
+      </div>
+      <h2 style="margin-top:18px">Lock Screen &amp; StandBy accessories <em>vibrant, monochrome</em></h2>
+      <div class="lock">
+        <div class="date">Wednesday 11 November</div>
+        <div class="clock">9:41</div>
+        <div class="acc">
+          <div class="acc-c" id="accC"><canvas></canvas></div>
+          <div class="acc-r" id="accR"><canvas></canvas><div class="t" id="rT"></div><div class="a" id="rA"></div><div class="b"><i id="rB"></i></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Companion app <em>Now Playing</em></h2>
+      <div class="phone" id="phone">
+        <div class="island"></div>
+        <div class="sb"><span>9:41</span><span class="ic">
+          <svg width="18" height="11" viewBox="0 0 18 11"><rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5" width="3" height="6" rx="1" fill="currentColor"/><rect x="10" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="11" rx="1" fill="currentColor"/></svg>
+          <svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="17" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.5" height="4" rx=".7" fill="currentColor" opacity=".4"/></svg></span></div>
+        <div class="hdr">
+          <div class="iconbtn" aria-label="Close"><svg viewBox="0 0 16 16"><path d="M3.5 6l4.5 4.5L12.5 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="src"><span>Playing on</span><div class="logo"><i></i>Spotify</div></div>
+          <div class="iconbtn" aria-label="More"><svg viewBox="0 0 16 16"><circle cx="3.5" cy="8" r="1.5" fill="currentColor"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/><circle cx="12.5" cy="8" r="1.5" fill="currentColor"/></svg></div>
+        </div>
+        <canvas id="appCanvas"></canvas>
+        <div class="wtext a-meta" id="aMeta"><div class="a-title" id="aTitle"></div><div class="a-artist" id="aArtist"></div></div>
+        <div class="a-prog" id="aProg"><div class="a-bar"><i id="aBar"></i></div><div class="a-times"><span id="aPos">0:00</span><span id="aRem">-0:00</span></div></div>
+        <button class="a-play" id="aPlay" aria-label="Play or pause"></button>
+        <div class="a-open" id="aOpen"><i></i><span id="aOpenTxt">OPEN SPOTIFY</span></div>
+        <div class="home-ind"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="legend">
+    <div><b>Static sheen, rotating label</b>Grooves are radially symmetric, so they live in a static layer together with the anisotropic highlight. Only the label (and a 2–3 % pressing irregularity) rotates — no shimmer from rotating fine rings.</div>
+    <div><b>Inertia</b>Spin-up: first-order lag, τ = 0.22 s (≈95 % speed in 0.65 s). Spin-down: viscous + friction drag, stops in ≈1.6 s. Track change crossfades the label in 450 ms without touching rotation.</div>
+    <div><b>Artwork rules</b>“Inscribed” keeps the full square art (4 pt corners, nothing over it) on a label coloured from the art’s edge pixels. “Still” is the same label held upright and motionless — only the disc and run-out etching turn. “Full-bleed” crops to a circle — shown for comparison, flagged non-compliant with Spotify’s artwork guidance.</div>
+    <div><b>Clear &amp; Tinted</b>Disc is drawn as a luminance-to-alpha “glass record”; album art stays full colour (HIG explicitly allows full-colour album art). Toggle “Art in colour” off to preview the accented-desaturated fallback.</div>
+  </div>
+  <footer>All artwork, titles and artists are fictional and generated in-page. The circle-and-dot mark is an attribution placeholder only — use the official Spotify logo files in the shipping app. Widgets on iOS cannot run continuous animation with public API; the spin shown on widgets here illustrates the in-app feel and the optional live-spin experiment.</footer>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   Utilities
+   ============================================================ */
+const SCALE = Math.max(2, Math.min(3, window.devicePixelRatio || 1));
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+const sstep = (e0, e1, x) => { const t = clamp((x - e0) / (e1 - e0), 0, 1); return t * t * (3 - 2 * t); };
+const easeInOut = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const TAU = Math.PI * 2;
+function mk(w, h) { const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(w)); c.height = Math.max(1, Math.round(h || w)); return c; }
+function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function noise1D(seed) {
+  const r = rng(seed), n = 1024, p = Array.from({ length: n }, () => r() * 2 - 1);
+  return x => { const i = Math.floor(x), f = x - i, a = p[((i % n) + n) % n], b = p[(((i + 1) % n) + n) % n], u = f * f * (3 - 2 * f); return a + (b - a) * u; };
+}
+function hexToRgb(h) { h = h.replace('#', ''); return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]; }
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255; const mx = Math.max(r, g, b), mn = Math.min(r, g, b); let h = 0, s = 0; const l = (mx + mn) / 2;
+  if (mx !== mn) { const d = mx - mn; s = l > .5 ? d / (2 - mx - mn) : d / (mx + mn);
+    h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; }
+  return [h, s * 100, l * 100];
+}
+const hsl = (h, s, l, a = 1) => `hsla(${h.toFixed(1)},${s.toFixed(1)}%,${l.toFixed(1)}%,${a})`;
+function roundRect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function grain(g, w, h, amt, seed) {
+  const img = g.getImageData(0, 0, w, h), d = img.data, r = rng(seed);
+  for (let i = 0; i < d.length; i += 4) { const n = (r() - .5) * amt; d[i] += n; d[i + 1] += n; d[i + 2] += n; }
+  g.putImageData(img, 0, 0);
+}
+
+/* ============================================================
+   Generated placeholder "album art" (abstract, original)
+   ============================================================ */
+const ART = 600;
+function artSolstice() {
+  const c = mk(ART), g = c.getContext('2d');
+  const sky = g.createLinearGradient(0, 0, 0, ART); sky.addColorStop(0, '#24183b'); sky.addColorStop(.45, '#b4436a'); sky.addColorStop(.8, '#f08a5d'); sky.addColorStop(1, '#f6c27a');
+  g.fillStyle = sky; g.fillRect(0, 0, ART, ART);
+  const sun = g.createLinearGradient(0, 170, 0, 470); sun.addColorStop(0, '#ffe7b3'); sun.addColorStop(1, '#ff7b54');
+  g.fillStyle = sun; g.beginPath(); g.arc(300, 330, 160, 0, TAU); g.fill();
+  g.fillStyle = sky; for (let i = 0; i < 7; i++) { const y = 352 + i * 22 + i * i * 1.4; g.fillRect(100, y, 400, 3 + i * 2.2); }
+  g.fillStyle = '#1b1230'; g.fillRect(0, 480, ART, 120);
+  g.fillStyle = 'rgba(255,214,160,.55)'; g.fillRect(0, 480, ART, 2);
+  g.fillStyle = 'rgba(255,190,140,.18)'; for (let i = 0; i < 5; i++) g.fillRect(180 + i * 8 - i * i * 3, 500 + i * 18, 240 - i * 22 + i * i * 6, 3);
+  grain(g, ART, ART, 22, 1); return c;
+}
+function artTidewater() {
+  const c = mk(ART), g = c.getContext('2d');
+  g.fillStyle = '#0d3440'; g.fillRect(0, 0, ART, ART);
+  const cols = ['#0f3d4a', '#13505b', '#1b6a70', '#2f8a85', '#57a597', '#8fc0a6', '#c9d8b6', '#ece2c6'];
+  for (let i = 0; i < cols.length; i++) {
+    const base = 150 + i * 56; g.fillStyle = cols[i]; g.beginPath(); g.moveTo(0, ART);
+    for (let x = 0; x <= ART; x += 6) { const y = base + Math.sin(x / 70 + i * .9) * 18 + Math.sin(x / 23 + i * 2.1) * 5; g.lineTo(x, y); }
+    g.lineTo(ART, ART); g.closePath(); g.fill();
+  }
+  g.fillStyle = '#ece2c6'; g.beginPath(); g.arc(452, 118, 34, 0, TAU); g.fill();
+  grain(g, ART, ART, 18, 2); return c;
+}
+function artBauhaus() {
+  const c = mk(ART), g = c.getContext('2d');
+  g.fillStyle = '#ebe5d8'; g.fillRect(0, 0, ART, ART);
+  g.fillStyle = '#16161a'; g.beginPath(); g.moveTo(0, ART); g.arc(0, ART, 380, -Math.PI / 2, 0); g.closePath(); g.fill();
+  g.fillStyle = '#d9432f'; g.beginPath(); g.arc(408, 196, 92, 0, TAU); g.fill();
+  g.fillStyle = '#e3a72f'; g.beginPath(); g.arc(452, ART, 128, Math.PI, 0); g.fill();
+  g.save(); g.translate(250, 150); g.rotate(-.35); g.fillStyle = '#2b4a8a'; g.fillRect(-36, -36, 72, 72); g.restore();
+  g.strokeStyle = '#16161a'; g.lineWidth = 6; g.beginPath(); g.moveTo(60, 70); g.lineTo(560, 70); g.stroke();
+  g.lineWidth = 3; g.beginPath(); g.moveTo(60, 88); g.lineTo(330, 88); g.stroke();
+  grain(g, ART, ART, 14, 3); return c;
+}
+function artSignal() {
+  const c = mk(ART), g = c.getContext('2d');
+  const bg = g.createRadialGradient(300, 520, 20, 300, 420, 620); bg.addColorStop(0, '#1b1550'); bg.addColorStop(1, '#05060f');
+  g.fillStyle = bg; g.fillRect(0, 0, ART, ART);
+  g.strokeStyle = 'rgba(120,140,255,.08)'; g.lineWidth = 1; for (let x = 0; x <= ART; x += 40) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, ART); g.stroke(); g.beginPath(); g.moveTo(0, x); g.lineTo(ART, x); g.stroke(); }
+  for (let i = 0; i < 14; i++) {
+    const r = 70 + i * 36, t = i / 13; g.strokeStyle = `rgba(${Math.round(70 + 185 * t)},${Math.round(230 - 150 * t)},${Math.round(255 - 40 * t)},${.95 - t * .55})`;
+    g.lineWidth = 6 - t * 3.5; g.beginPath(); g.arc(300, 600, r, Math.PI, TAU); g.stroke();
+  }
+  g.fillStyle = '#ff4fa3'; g.beginPath(); g.arc(436, 172, 16, 0, TAU); g.fill();
+  g.fillStyle = 'rgba(255,79,163,.18)'; g.beginPath(); g.arc(436, 172, 40, 0, TAU); g.fill();
+  grain(g, ART, ART, 16, 4); return c;
+}
+function artMoss() {
+  const c = mk(ART), g = c.getContext('2d');
+  g.fillStyle = '#2e4a33'; g.fillRect(0, 0, ART, ART);
+  g.filter = 'blur(46px)';
+  [['#93b97d', 170, 210, 170], ['#dccb8e', 420, 380, 150], ['#1a2c21', 330, 120, 140], ['#6f9a6a', 120, 470, 160], ['#b7c98f', 480, 120, 90]]
+    .forEach(([col, x, y, r]) => { g.fillStyle = col; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); });
+  g.filter = 'none';
+  g.strokeStyle = 'rgba(245,240,220,.85)'; g.lineWidth = 3; g.beginPath(); g.arc(300, 300, 120, 0, TAU); g.stroke();
+  g.fillStyle = 'rgba(245,240,220,.9)'; g.beginPath(); g.arc(300, 180, 7, 0, TAU); g.fill();
+  grain(g, ART, ART, 30, 5); return c;
+}
+const TRACKS = [
+  { key: 'sol', title: 'Low Sun Over Harbour', artist: 'Marlow Reyes', dur: 204, art: artSolstice },
+  { key: 'tide', title: 'Undertow (Slow Version)', artist: 'The Pale Coast', dur: 251, art: artTidewater },
+  { key: 'bau', title: 'Form & Function', artist: 'Ada Kessler Trio', dur: 187, art: artBauhaus },
+  { key: 'sig', title: 'Signal Fires', artist: 'Nova Line', dur: 233, art: artSignal },
+  { key: 'moss', title: 'Moss Theory', artist: 'Juniper Hall', dur: 279, art: artMoss },
+];
+const NOART = { key: 'noart', title: 'Demo 04 — bounce', artist: 'Local file', dur: 142, art: null };
+
+/* ============================================================
+   Colour extraction (tint from artwork)
+   ============================================================ */
+function extractPalette(art) {
+  if (!art) return { h: 0, s: 0, edge: [44, 44, 48], neutral: true };
+  const n = 24, c = mk(n), g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(art, 0, 0, n, n);
+  const d = g.getImageData(0, 0, n, n).data, bins = new Array(24).fill(0), binS = new Array(24).fill(0);
+  let er = 0, eg = 0, eb = 0, en = 0;
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const i = (y * n + x) * 4, [h, s, l] = rgbToHsl(d[i], d[i + 1], d[i + 2]);
+    const w = Math.pow(s / 100, 1.4) * (1 - Math.min(1, Math.abs(l - 50) / 50) * .8) + .002;
+    const b = Math.floor(h / 15) % 24; bins[b] += w; binS[b] += s * w;
+    if (x === 0 || y === 0 || x === n - 1 || y === n - 1) { er += d[i]; eg += d[i + 1]; eb += d[i + 2]; en++; }
+  }
+  let best = 0; for (let i = 1; i < 24; i++) if (bins[i] > bins[best]) best = i;
+  return { h: best * 15 + 7.5, s: binS[best] / Math.max(1e-6, bins[best]), edge: [er / en, eg / en, eb / en], neutral: false };
+}
+function derive(p) {
+  const s = p.neutral ? 0 : p.s, h = p.h;
+  return {
+    bgDark: hsl(h, clamp(s * .42, 0, 26), 12), bgLight: hsl(h, clamp(s * .45, 0, 30), 91.5),
+    fillDark: hsl(h, clamp(s * .35, 0, 22), 22), fillLight: hsl(h, clamp(s * .4, 0, 25), 83),
+    accDark: hsl(h, clamp(s, 30, 78), 70), accLight: hsl(h, clamp(s, 30, 78), 36),
+    plain: p.neutral ? hsl(0, 0, 30) : hsl(h, clamp(s * .85, 25, 68), 48),
+    edge: `rgb(${p.edge.map(Math.round).join(',')})`, edgeLum: (.2126 * p.edge[0] + .7152 * p.edge[1] + .0722 * p.edge[2]) / 255,
+  };
+}
+
+/* ============================================================
+   Disc geometry & procedural textures
+   ratios are of the disc radius R
+   ============================================================ */
+const G = { label: .50, runOut: .565, prog: .948, leadIn: .982, hole: .024, spindle: .015 };
+const GAPS = (() => { const r = rng(42), n = 5, out = []; for (let i = 0; i < n; i++) out.push(G.runOut + (G.prog - G.runOut) * (i + 1) / (n + 1) + (r() - .5) * .035); return out; })();
+const loud = noise1D(7), irrN = noise1D(19), irrN2 = noise1D(23);
+function pitchFor(N) { return Math.max(2.3, 1.05 * SCALE) * (N > 500 ? 1 : .95); }
+
+/* static base: vinyl body + grooves + zones + bevel. variant: null (colour) or [r,g,b] for mono "glass" rendering */
+function makeBase(N, mono) {
+  const c = mk(N), g = c.getContext('2d'), img = g.createImageData(N, N), d = img.data, R = N / 2, pitch = pitchFor(N);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const dx = x + .5 - R, dy = y + .5 - R, r = Math.hypot(dx, dy), rn = r / R, cov = clamp(R - r + .5, 0, 1);
+    if (cov <= 0) continue;
+    let v = .046;
+    const gw = Math.sin(TAU * r / pitch);
+    if (rn >= G.runOut && rn <= G.prog) {
+      const l = loud(r / (pitch * 9)); let amp = .022 * (.75 + .5 * Math.abs(l)); v += .010 * l;
+      let gap = 0; for (const gp of GAPS) gap = Math.max(gap, 1 - sstep(0, pitch * 1.6, Math.abs(rn - gp) * R));
+      amp *= 1 - .85 * gap; v -= .008 * gap;
+      const edge = sstep(G.runOut, G.runOut + 2.5 * pitch / R, rn) * (1 - sstep(G.prog - 2.5 * pitch / R, G.prog, rn));
+      v += amp * gw * edge;
+    } else if (rn > G.label && rn < G.runOut) {
+      v += .006 * Math.sin(TAU * r / (pitch * 7)) + .024 * (1 - sstep(0, pitch * .9, Math.abs(rn - (G.runOut - .018)) * R));
+      v -= .02 * (1 - sstep(0, pitch * 1.2, (rn - G.label) * R));
+    } else if (rn > G.prog && rn < G.leadIn) {
+      v += .004 + .016 * (1 - sstep(0, pitch * .8, Math.abs(rn - (G.prog + .012)) * R));
+    } else if (rn >= G.leadIn) {
+      const t = (rn - G.leadIn) / (1 - G.leadIn); v += .10 * Math.sin(Math.PI * Math.min(1, t * 1.15)) * (.7 + .3 * t);
+    }
+    const i = (y * N + x) * 4;
+    if (!mono) { const k = v * 255; d[i] = k * .97; d[i + 1] = k * .98; d[i + 2] = k * 1.04; d[i + 3] = 255 * cov; }
+    else { d[i] = mono[0]; d[i + 1] = mono[1]; d[i + 2] = mono[2]; d[i + 3] = 255 * cov * clamp(.05 + (v - .04) * 4.4, 0, .85); }
+  }
+  g.putImageData(img, 0, 0); return c;
+}
+/* static anisotropic sheen: bow-tie highlight along the light axis, modulated by groove phase (radial only -> valid while disc rotates) */
+function makeSheen(N, mono) {
+  const c = mk(N), g = c.getContext('2d'), img = g.createImageData(N, N), d = img.data, R = N / 2, pitch = pitchFor(N);
+  const thL = -2.25, strength = mono ? 0.95 : 1.15; /* light axis: upper-left <-> lower-right */
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const dx = x + .5 - R, dy = y + .5 - R, r = Math.hypot(dx, dy), rn = r / R;
+    if (rn <= G.label + .004 || rn > .995) continue;
+    const a = Math.atan2(dy, dx), cMain = Math.abs(Math.cos(a - thL)), cFill = Math.abs(Math.cos(a - thL - Math.PI / 2));
+    const lobe = Math.pow(cMain, 16 + 16 * rn), wide = Math.pow(cMain, 3), fill = Math.pow(cFill, 34);
+    const radial = sstep(G.label, G.label + .06, rn) * (1 - sstep(.975, .995, rn)) * (.7 + .3 * rn);
+    let gloss;
+    if (rn >= G.runOut && rn <= G.prog) {
+      let gap = 0; for (const gp of GAPS) gap = Math.max(gap, 1 - sstep(0, pitch * 1.6, Math.abs(rn - gp) * R));
+      gloss = (.5 + .5 * (.5 + .5 * Math.sin(TAU * r / pitch))) * (1 - gap) + 1.9 * gap;
+    } else gloss = 1.25;
+    const al = strength * radial * (.42 * lobe * gloss + .03 * wide + .10 * fill * gloss);
+    const i = (y * N + x) * 4; d[i] = 238; d[i + 1] = 242; d[i + 2] = 255; d[i + 3] = 255 * clamp(al, 0, 1);
+  }
+  g.putImageData(img, 0, 0); return c;
+}
+/* rotating irregularity: very faint low-frequency angular variation so the body itself hints at motion */
+function makeIrr(N) {
+  const c = mk(N), g = c.getContext('2d'), img = g.createImageData(N, N), d = img.data, R = N / 2;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const dx = x + .5 - R, dy = y + .5 - R, r = Math.hypot(dx, dy), rn = r / R;
+    if (rn < G.runOut || rn > G.prog) continue;
+    const a = Math.atan2(dy, dx);
+    const v = .65 * Math.sin(a + 1.3 * irrN(rn * 9)) * (.5 + .5 * irrN2(rn * 21)) + .35 * Math.sin(2 * a + 2.4 + irrN2(rn * 5));
+    const i = (y * N + x) * 4, k = v > 0 ? 255 : 0; d[i] = d[i + 1] = d[i + 2] = k; d[i + 3] = 255 * Math.abs(v) * (v > 0 ? .028 : .045);
+  }
+  g.putImageData(img, 0, 0); return c;
+}
+const texCache = new Map();
+function tex(kind, N, mono) {
+  const k = kind + N + (mono ? mono.join() : ''); let t = texCache.get(k);
+  if (!t) { t = kind === 'base' ? makeBase(N, mono) : kind === 'sheen' ? makeSheen(N, mono) : makeIrr(N); texCache.set(k, t); }
+  return t;
+}
+
+/* ============================================================
+   Labels (rotate with the disc)
+   ============================================================ */
+const artCache = new Map(), palCache = new Map();
+function artOf(t) { if (!t || !t.art) return null; let a = artCache.get(t.key); if (!a) { a = t.art(); artCache.set(t.key, a); } return a; }
+function palOf(t) { const k = t ? t.key : 'none'; let p = palCache.get(k); if (!p) { p = derive(extractPalette(artOf(t))); palCache.set(k, p); } return p; }
+function monoArt(t, mono) {
+  const k = 'mono' + t.key + mono.join(); let c = artCache.get(k); if (c) return c;
+  const a = artOf(t), n = 300; c = mk(n); const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(a, 0, 0, n, n);
+  const img = g.getImageData(0, 0, n, n), d = img.data;
+  for (let i = 0; i < d.length; i += 4) { const L = (.2126 * d[i] + .7152 * d[i + 1] + .0722 * d[i + 2]) / 255; d[i] = mono[0]; d[i + 1] = mono[1]; d[i + 2] = mono[2]; d[i + 3] = 255 * (.18 + .82 * L); }
+  g.putImageData(img, 0, 0); artCache.set(k, c); return c;
+}
+const labelCache = new Map();
+/* who: track | 'idle' ; mode: print|full|plain ; Lpx label radius in px ; v: {mono, artColor, radiusPx} */
+function label(who, mode, Lpx, v) {
+  if (mode === 'still') mode = 'print';
+  const tk = who === 'idle' ? 'idle' : who.key, effMode = (who === 'idle' || !artOf(who)) && mode !== 'plain' ? 'fallback' : mode;
+  const key = [tk, effMode, Math.round(Lpx), v.mono ? v.mono.join() : 'c', v.artColor, v.cr].join('|');
+  let c = labelCache.get(key); if (c) return c;
+  const N = Math.ceil(Lpx * 2); c = mk(N); const g = c.getContext('2d'), r = N / 2;
+  const pal = who === 'idle' ? derive({ h: 0, s: 0, edge: [60, 60, 64], neutral: true }) : palOf(who);
+  const mono = v.mono, monoC = (a) => `rgba(${mono[0]},${mono[1]},${mono[2]},${a})`;
+  g.save(); g.beginPath(); g.arc(r, r, r - .3, 0, TAU); g.clip();
+  const art = who !== 'idle' ? (mono && !v.artColor ? (artOf(who) ? monoArt(who, mono) : null) : artOf(who)) : null;
+  if (effMode === 'print') {
+    g.fillStyle = mono ? monoC(.22) : pal.edge; g.fillRect(0, 0, N, N);
+    const ringC = mono ? monoC(.45) : (pal.edgeLum > .55 ? 'rgba(0,0,0,.16)' : 'rgba(255,255,255,.16)');
+    g.strokeStyle = ringC; g.lineWidth = Math.max(1, N * .006); g.beginPath(); g.arc(r, r, r * .968, 0, TAU); g.stroke();
+    const s = r * 2 / Math.SQRT2 * .94, o = r - s / 2;
+    if (mono && v.artColor === false) { /* tinted fallback: accented-desaturated */ }
+    g.save(); roundRect(g, o, o, s, s, v.cr); g.clip(); g.drawImage(art, o, o, s, s); g.restore();
+  } else if (effMode === 'full') {
+    g.drawImage(art, 0, 0, N, N);
+    g.strokeStyle = 'rgba(0,0,0,.28)'; g.lineWidth = Math.max(1, N * .01); g.beginPath(); g.arc(r, r, r - g.lineWidth / 2, 0, TAU); g.stroke();
+  } else {
+    /* plain / fallback label: flat colour + printed marks (provide rotation cue) */
+    const base = mono ? monoC(effMode === 'fallback' ? .3 : .42) : (effMode === 'fallback' ? (window.__dark ? '#2b2b30' : '#d9d7d2') : pal.plain);
+    g.fillStyle = base; g.fillRect(0, 0, N, N);
+    const ink = mono ? monoC(.85) : (effMode === 'fallback' ? (window.__dark ? 'rgba(255,255,255,.34)' : 'rgba(0,0,0,.30)') : 'rgba(255,255,255,.62)');
+    const ink2 = mono ? monoC(.35) : (effMode === 'fallback' ? (window.__dark ? 'rgba(255,255,255,.12)' : 'rgba(0,0,0,.10)') : 'rgba(255,255,255,.2)');
+    g.strokeStyle = ink2; g.lineWidth = Math.max(1, N * .006);
+    [.93, .36].forEach(k => { g.beginPath(); g.arc(r, r, r * k, 0, TAU); g.stroke(); });
+    g.strokeStyle = ink; g.lineCap = 'round'; g.lineWidth = Math.max(1.2, N * .028);
+    g.beginPath(); g.arc(r, r, r * .7, -2.2, -1.25); g.stroke();
+    g.lineWidth = Math.max(1, N * .012); g.beginPath(); g.arc(r, r, r * .7, -1.05, -.62); g.stroke();
+    g.fillStyle = ink; g.beginPath(); g.arc(r + Math.cos(2.35) * r * .7, r + Math.sin(2.35) * r * .7, Math.max(1, N * .02), 0, TAU); g.fill();
+    if (effMode === 'fallback' && who !== 'idle') { /* music note glyph for missing artwork */
+      g.save(); g.translate(r, r); g.rotate(.0); g.fillStyle = ink; g.font = `600 ${Math.round(r * .42)}px ${getComputedStyle(document.body).fontFamily}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('♪', r * .0, r * .52); g.restore();
+    }
+  }
+  g.restore(); labelCache.set(key, c); return c;
+}
+
+/* ============================================================
+   App state & physics
+   ============================================================ */
+const S = {
+  playing: true, omega: 0, angle: -12, speed: 200, look: 'dark', label: 'print', state: 'live',
+  spec: false, reduce: false, artColor: true, idx: 0, prevIdx: null, fadeStart: -1, pos: 37,
+};
+window.__dark = true;
+const FADE_MS = 450;
+function curTrack() { return S.state === 'noart' ? NOART : TRACKS[S.idx]; }
+function prevTrack() { return S.prevIdx == null ? null : (S.state === 'noart' ? null : TRACKS[S.prevIdx]); }
+function active() { return S.state === 'live' || S.state === 'noart'; }
+function stepPhysics(dt) {
+  const target = S.playing && active() && !S.reduce ? S.speed : 0;
+  if (target > S.omega) S.omega += (target - S.omega) * (1 - Math.exp(-dt / .22));
+  else { S.omega -= (S.omega * 1.1 + 70) * dt; if (S.omega < target) S.omega = target; }
+  S.angle = (S.angle + S.omega * dt) % 360;
+  if (S.playing && active()) { S.pos += dt; const d = curTrack().dur; if (S.pos >= d) { S.pos = 0; nextTrack(); } }
+}
+
+/* ============================================================
+   Scene drawing
+   ============================================================ */
+function variantFor(context) {
+  if (context === 'lock') return { mono: [255, 255, 255], artColor: false };
+  if (S.look === 'clear') return { mono: [255, 255, 255], artColor: S.artColor };
+  if (S.look === 'tinted') return { mono: [242, 200, 121], artColor: S.artColor };
+  return { mono: null, artColor: true };
+}
+function drawDisc(g, cx, cy, D, opt) {
+  const N = Math.round(D), R = D / 2, v = opt.v, mono = v.mono, Lr = R * G.label;
+  g.save(); g.globalAlpha = opt.alpha ?? 1;
+  if (!mono && opt.light) { g.save(); g.shadowColor = 'rgba(0,0,0,.26)'; g.shadowBlur = 5 * SCALE; g.shadowOffsetY = 1.2 * SCALE; g.fillStyle = '#000'; g.beginPath(); g.arc(cx, cy, R - .8, 0, TAU); g.fill(); g.restore(); }
+  g.drawImage(tex('base', N, mono), cx - R, cy - R, D, D);
+  g.save(); g.translate(cx, cy); g.rotate(S.angle * Math.PI / 180);
+  if (!mono) g.drawImage(tex('irr', N), -R, -R, D, D);
+  /* run-out etching (matrix marks): rotates with the disc — a realistic motion cue that never touches the artwork */
+  if (D > 60 * SCALE) {
+    const er = R * .533, ew = Math.max(.6, R * .0045);
+    g.strokeStyle = mono ? `rgba(${mono.join()},.32)` : 'rgba(255,255,255,.13)'; g.lineWidth = ew; g.lineCap = 'round';
+    for (let i = 0; i < 11; i++) { if (i === 3 || i === 7) continue; const a = 2.1 + i * .045; g.beginPath(); g.arc(0, 0, er, a, a + .028); g.stroke(); }
+    g.beginPath(); g.arc(0, 0, er, 2.75, 2.82); g.stroke();
+    g.fillStyle = g.strokeStyle; g.beginPath(); const ta = 2.95, tr = R * .012;
+    g.moveTo(Math.cos(ta) * (er + tr), Math.sin(ta) * (er + tr)); g.lineTo(Math.cos(ta + .02) * (er - tr), Math.sin(ta + .02) * (er - tr)); g.lineTo(Math.cos(ta - .02) * (er - tr), Math.sin(ta - .02) * (er - tr)); g.fill();
+  }
+  const mode = opt.mode, lv = { mono, artColor: v.artColor, cr: opt.cr };
+  const who = opt.who, prev = opt.prev, t = opt.fade;
+  const baseA = g.globalAlpha;
+  if (mode === 'still') g.restore(), g.save(), g.translate(cx, cy); /* label stays upright & still */
+  if (prev && t < 1) { g.drawImage(label(prev, mode, Lr, lv), -Lr, -Lr, 2 * Lr, 2 * Lr); g.globalAlpha = baseA * easeInOut(t); }
+  g.drawImage(label(who, mode, Lr, lv), -Lr, -Lr, 2 * Lr, 2 * Lr);
+  g.globalAlpha = baseA; g.restore();
+  g.drawImage(tex('sheen', N, mono), cx - R, cy - R, D, D);
+  const effPlain = (mode !== 'print' && mode !== 'still') || who === 'idle' || !artOf(who);
+  if (effPlain) { /* spindle hole + spindle (static, rotationally symmetric) */
+    g.fillStyle = mono ? `rgba(${mono.join()},.15)` : '#050506'; g.beginPath(); g.arc(cx, cy, R * G.hole, 0, TAU); g.fill();
+    const sg = g.createRadialGradient(cx - R * .006, cy - R * .006, 0, cx, cy, R * G.spindle);
+    if (mono) { sg.addColorStop(0, `rgba(${mono.join()},.95)`); sg.addColorStop(1, `rgba(${mono.join()},.55)`); } else { sg.addColorStop(0, '#f2f2f5'); sg.addColorStop(1, '#7c7c84'); }
+    g.fillStyle = sg; g.beginPath(); g.arc(cx, cy, R * G.spindle, 0, TAU); g.fill();
+  }
+  if (!mono && !opt.light) { g.strokeStyle = 'rgba(255,255,255,.07)'; g.lineWidth = 1; g.beginPath(); g.arc(cx, cy, R - .5, 0, TAU); g.stroke(); }
+  g.restore();
+}
+function drawSleeve(g, x, y, s, cr, opt) {
+  const v = opt.v, mono = v.mono;
+  g.save();
+  g.shadowColor = mono ? 'rgba(0,0,0,.18)' : 'rgba(0,0,0,.38)'; g.shadowBlur = 7 * SCALE; g.shadowOffsetX = 2 * SCALE; g.shadowOffsetY = 1 * SCALE;
+  roundRect(g, x, y, s, s, cr); g.fillStyle = mono ? `rgba(${mono.join()},.25)` : '#222'; g.fill(); g.restore();
+  const drawOne = (who) => {
+    g.save(); roundRect(g, x, y, s, s, cr); g.clip();
+    if (who === 'idle' || !artOf(who)) {
+      g.fillStyle = mono ? `rgba(${mono.join()},.22)` : (window.__dark ? '#2a2a2f' : '#e2dfd8'); g.fillRect(x, y, s, s);
+      g.fillStyle = mono ? `rgba(${mono.join()},.12)` : (window.__dark ? '#1c1c20' : '#cfccc4'); g.beginPath(); g.arc(x + s / 2, y + s / 2, s * .17, 0, TAU); g.fill();
+      if (who !== 'idle') { g.fillStyle = mono ? `rgba(${mono.join()},.7)` : (window.__dark ? 'rgba(255,255,255,.4)' : 'rgba(0,0,0,.35)'); g.font = `600 ${Math.round(s * .16)}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('♪', x + s / 2, y + s / 2 + s * .005); }
+    } else {
+      const a = mono && !v.artColor ? monoArt(who, mono) : artOf(who); g.drawImage(a, x, y, s, s);
+    }
+    g.restore();
+  };
+  if (opt.prev && opt.fade < 1) { drawOne(opt.prev); g.globalAlpha = easeInOut(opt.fade); }
+  drawOne(opt.who); g.globalAlpha = 1;
+}
+
+/* ---- surfaces ---- */
+function setupCanvas(cv, w, h) { cv.width = Math.round(w * SCALE); cv.height = Math.round(h * SCALE); cv.style.width = w + 'px'; cv.style.height = h + 'px'; return cv.getContext('2d'); }
+const P = s => s * SCALE; // points -> canvas px
+const surf = {
+  small: setupCanvas(document.querySelector('#wSmall canvas'), 158, 158),
+  sleeve: setupCanvas(document.querySelector('#wSleeve canvas'), 158, 158),
+  medium: setupCanvas(document.querySelector('#wMedium canvas'), 338, 158),
+  app: setupCanvas(document.getElementById('appCanvas'), 393, 352),
+  accC: setupCanvas(document.querySelector('#accC canvas'), 72, 72),
+  accR: setupCanvas(document.querySelector('#accR canvas'), 160, 72),
+};
+function sceneArgs(context) {
+  const now = performance.now(), t = S.fadeStart < 0 ? 1 : clamp((now - S.fadeStart) / FADE_MS, 0, 1);
+  const who = active() ? curTrack() : 'idle';
+  const prev = active() && S.state === 'live' ? prevTrack() : null;
+  return { who, prev, fade: t, v: variantFor(context), light: S.look === 'light', alpha: S.state === 'off' ? .38 : 1 };
+}
+function render() {
+  const lbl = S.label;
+  // Small · Record — disc 120pt centred (ratio .76)
+  { const g = surf.small, a = sceneArgs('home'); g.clearRect(0, 0, g.canvas.width, g.canvas.height);
+    drawDisc(g, P(79), P(79), P(120), { ...a, mode: lbl, cr: P(4) }); }
+  // Small · Sleeve — art 104pt bottom-left, disc 104pt peeking up-right; disc label forced plain (art is on sleeve)
+  { const g = surf.sleeve, a = sceneArgs('home'); g.clearRect(0, 0, g.canvas.width, g.canvas.height);
+    drawDisc(g, P(93), P(65), P(104), { ...a, mode: 'plain', cr: P(4) });
+    drawSleeve(g, P(13), P(41), P(104), P(4), a); }
+  // Medium · Sleeve — art 126pt at 16pt margin, disc 126pt peeking 48pt
+  { const g = surf.medium, a = sceneArgs('home'); g.clearRect(0, 0, g.canvas.width, g.canvas.height);
+    drawDisc(g, P(127), P(79), P(126), { ...a, mode: 'plain', cr: P(4) });
+    drawSleeve(g, P(16), P(16), P(126), P(4), a); }
+  // App hero — 320pt disc
+  { const g = surf.app, a = sceneArgs('app'); a.v = { mono: null, artColor: true }; a.light = S.look === 'light';
+    g.clearRect(0, 0, g.canvas.width, g.canvas.height);
+    drawDisc(g, P(196.5), P(176), P(320), { ...a, mode: lbl, cr: P(4) }); }
+  // Lock screen accessories (vibrant mono)
+  { const g = surf.accC, a = sceneArgs('lock'); g.clearRect(0, 0, g.canvas.width, g.canvas.height);
+    g.fillStyle = 'rgba(255,255,255,.14)'; g.beginPath(); g.arc(P(36), P(36), P(36), 0, TAU); g.fill();
+    drawDisc(g, P(36), P(36), P(56), { ...a, mode: lbl === 'plain' ? 'plain' : 'print', cr: P(2) });
+    const prog = active() ? S.pos / curTrack().dur : 0;
+    g.lineCap = 'round'; g.lineWidth = P(3); g.strokeStyle = 'rgba(255,255,255,.25)'; g.beginPath(); g.arc(P(36), P(36), P(33), 0, TAU); g.stroke();
+    if (prog > 0) { g.strokeStyle = 'rgba(255,255,255,.95)'; g.beginPath(); g.arc(P(36), P(36), P(33), -Math.PI / 2, -Math.PI / 2 + TAU * prog); g.stroke(); } }
+  { const g = surf.accR, a = sceneArgs('lock'); g.clearRect(0, 0, g.canvas.width, g.canvas.height);
+    drawDisc(g, P(28), P(36), P(56), { ...a, mode: lbl === 'plain' ? 'plain' : 'print', cr: P(2) }); }
+}
+
+/* ============================================================
+   DOM: text, colours, states
+   ============================================================ */
+const $ = id => document.getElementById(id);
+const fmt = s => { s = Math.max(0, Math.floor(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+const ICON = {
+  play: '<svg viewBox="0 0 12 12"><path d="M2.5 1.2v9.6L10.5 6z" fill="currentColor"/></svg>',
+  pause: '<svg viewBox="0 0 12 12"><rect x="2" y="1.5" width="3" height="9" rx=".8" fill="currentColor"/><rect x="7" y="1.5" width="3" height="9" rx=".8" fill="currentColor"/></svg>',
+  bars: '<svg viewBox="0 0 12 12"><rect x="1" y="5" width="2" height="6" rx="1" fill="currentColor"/><rect x="5" y="2" width="2" height="9" rx="1" fill="currentColor"/><rect x="9" y="6" width="2" height="5" rx="1" fill="currentColor"/></svg>',
+  dot: '<svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="3" fill="currentColor"/></svg>',
+};
+function texts() {
+  if (S.state === 'idle') return { t: 'Nothing playing', a: 'Play something in Spotify', st: 'Idle', ic: ICON.dot };
+  if (S.state === 'off') return { t: 'Connect Spotify', a: 'Tap to sign in', st: 'Signed out', ic: ICON.dot };
+  const tr = curTrack();
+  return { t: tr.title, a: tr.artist, st: S.playing ? 'Playing' : 'Paused', ic: S.playing ? ICON.bars : ICON.pause };
+}
+function setText(fade) {
+  const x = texts();
+  const apply = () => {
+    $('mTitle').textContent = x.t; $('mArtist').textContent = x.a; $('mStatus').innerHTML = x.ic + x.st;
+    $('aTitle').textContent = x.t; $('aArtist').textContent = x.a;
+    $('rT').textContent = x.t; $('rA').textContent = x.a;
+    $('sStatus').innerHTML = S.state === 'live' || S.state === 'noart' ? (S.playing ? '' : ICON.pause + 'Paused') : ICON.dot + x.st;
+    $('aOpenTxt').textContent = S.state === 'off' ? 'CONNECT SPOTIFY' : 'OPEN SPOTIFY';
+  };
+  if (!fade) return apply();
+  const els = [$('mMeta'), $('aMeta')]; els.forEach(e => e.classList.add('fading'));
+  setTimeout(() => { apply(); els.forEach(e => e.classList.remove('fading')); }, 160);
+}
+function setPlayIcons() {
+  $('playBtn').innerHTML = (S.playing ? ICON.pause + 'Pause' : ICON.play + 'Play');
+  $('aPlay').innerHTML = S.playing ? '<svg viewBox="0 0 12 12"><rect x="2.2" y="1.5" width="2.6" height="9" rx=".9" fill="currentColor"/><rect x="7.2" y="1.5" width="2.6" height="9" rx=".9" fill="currentColor"/></svg>' : '<svg viewBox="0 0 12 12"><path d="M3 1.4v9.2c0 .5.5.8.9.5l7-4.6c.4-.2.4-.8 0-1L3.9.9C3.5.6 3 .9 3 1.4z" fill="currentColor"/></svg>';
+}
+function applyColours() {
+  const dark = S.look !== 'light'; window.__dark = dark; labelCache.clear();
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  const pal = active() ? palOf(curTrack()) : derive({ h: 0, s: 0, edge: [60, 60, 64], neutral: true });
+  const wall = $('wall'); wall.dataset.look = S.look;
+  $('lookNote').textContent = { light: 'Light appearance', dark: 'Dark appearance', clear: 'Clear (Liquid Glass) appearance', tinted: 'Tinted appearance' }[S.look];
+  let ink, ink2;
+  if (S.look === 'clear') { ink = 'rgba(255,255,255,.96)'; ink2 = 'rgba(255,255,255,.66)'; }
+  else if (S.look === 'tinted') { ink = 'rgba(248,214,146,1)'; ink2 = 'rgba(248,214,146,.62)'; }
+  else if (dark) { ink = 'rgba(255,255,255,.95)'; ink2 = 'rgba(255,255,255,.6)'; }
+  else { ink = 'rgba(17,17,19,.92)'; ink2 = 'rgba(17,17,19,.55)'; }
+  document.querySelectorAll('.widget').forEach(w => {
+    w.style.backgroundColor = dark ? pal.bgDark : pal.bgLight; w.style.setProperty('--wInk', ink); w.style.setProperty('--wInk2', ink2);
+  });
+  const ph = $('phone');
+  ph.style.backgroundColor = dark ? pal.bgDark : pal.bgLight;
+  ph.style.setProperty('--aInk', dark ? 'rgba(255,255,255,.96)' : 'rgba(17,17,19,.92)');
+  ph.style.setProperty('--aInk2', dark ? 'rgba(255,255,255,.58)' : 'rgba(17,17,19,.52)');
+  ph.style.setProperty('--aFill', dark ? 'rgba(255,255,255,.10)' : 'rgba(0,0,0,.06)');
+  ph.style.setProperty('--aFill2', dark ? 'rgba(255,255,255,.16)' : 'rgba(0,0,0,.12)');
+  $('aProg').style.opacity = active() ? 1 : 0;
+  $('aPlay').style.visibility = S.state === 'off' ? 'hidden' : 'visible';
+}
+
+/* spec overlays (measurements in pt) */
+function specSVG(host, w, h, items) {
+  const ns = 'http://www.w3.org/2000/svg', s = document.createElementNS(ns, 'svg'); s.setAttribute('class', 'specsvg'); s.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  s.setAttribute('width', w); s.setAttribute('height', h);
+  let html = '';
+  for (const it of items) {
+    const st = `fill="none" stroke="#ff2d6f" stroke-width="1" stroke-dasharray="3 2"`;
+    if (it.r) html += `<rect x="${it.r[0]}" y="${it.r[1]}" width="${it.r[2]}" height="${it.r[3]}" ${st}/>`;
+    if (it.c) html += `<circle cx="${it.c[0]}" cy="${it.c[1]}" r="${it.c[2]}" ${st}/>`;
+    if (it.t) { const [x, y, txt] = it.t; const wd = txt.length * 5.1 + 6; html += `<rect x="${x}" y="${y - 9}" width="${wd}" height="12" rx="3" fill="#ff2d6f"/><text x="${x + 3}" y="${y}" font-size="8.5" font-family="ui-monospace,Consolas,monospace" fill="#fff">${txt}</text>`; }
+  }
+  s.innerHTML = html; host.appendChild(s);
+}
+specSVG($('wSmall'), 158, 158, [{ r: [11, 11, 136, 136] }, { c: [79, 79, 60] }, { c: [79, 79, 30] }, { r: [126, 126, 21, 21] }, { t: [4, 12, 'disc 120 · margin 11'] }, { t: [56, 84, 'label .50'] }, { t: [88, 122, 'icon 21 @11'] }]);
+specSVG($('wSleeve'), 158, 158, [{ r: [13, 41, 104, 104] }, { c: [93, 65, 52] }, { r: [126, 126, 21, 21] }, { t: [16, 140, 'sleeve 104 r4'] }, { t: [70, 22, 'disc 104'] }]);
+specSVG($('wMedium'), 338, 158, [{ r: [16, 16, 306, 126] }, { r: [16, 16, 126, 126] }, { c: [127, 79, 63] }, { r: [204, 16, 118, 126] }, { t: [20, 30, 'art 126 r4'] }, { t: [150, 152, 'peek 48'] }, { t: [208, 100, 'text col 118'] }, { t: [3, 11, 'margin 16'] }]);
+specSVG($('phone'), 393, 800, [{ c: [196.5, 288, 160] }, { c: [196.5, 288, 80] }, { r: [196.5 - 53.2, 288 - 53.2, 106.4, 106.4] }, { r: [28, 484, 337, 52] }, { t: [40, 140, 'disc 320 @ x36.5'] }, { t: [146, 352, 'art 106 r4'] }, { t: [28, 480, 'title 22 bold · artist 17'] }, { t: [150, 612, 'play/pause 72'] }]);
+
+/* ============================================================
+   Controls
+   ============================================================ */
+function nextTrack() {
+  if (S.state !== 'live') { S.state = 'live'; syncSeg(); }
+  S.prevIdx = S.idx; S.idx = (S.idx + 1) % TRACKS.length; S.fadeStart = performance.now(); S.pos = 0;
+  applyColours(); setText(true);
+}
+function syncSeg() {
+  document.querySelectorAll('.seg').forEach(sg => { const k = sg.dataset.key; sg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(String(S[k]) === b.dataset.val))); });
+}
+document.querySelectorAll('.seg').forEach(sg => sg.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return; const k = sg.dataset.key; let v = b.dataset.val; if (k === 'speed') v = +v;
+  S[k] = v; if (k === 'state') { S.prevIdx = null; S.fadeStart = -1; } syncSeg(); applyColours(); setText(k === 'state');
+}));
+document.querySelectorAll('.tog').forEach(t => t.addEventListener('click', () => {
+  const k = t.dataset.tog; S[k] = !S[k]; t.setAttribute('aria-pressed', String(S[k]));
+  if (k === 'spec') document.body.classList.toggle('spec', S.spec);
+  labelCache.clear();
+}));
+const togglePlay = () => { if (S.state === 'off') return; if (S.state === 'idle') S.state = 'live', syncSeg(), applyColours(); S.playing = !S.playing; setPlayIcons(); setText(false); };
+$('playBtn').addEventListener('click', togglePlay); $('aPlay').addEventListener('click', togglePlay);
+$('nextBtn').addEventListener('click', nextTrack);
+document.addEventListener('keydown', e => { if (e.target.closest('button') && e.key === ' ') return; if (e.key === ' ') { e.preventDefault(); togglePlay(); } if (e.key === 'ArrowRight') nextTrack(); });
+
+/* ============================================================
+   Loop
+   ============================================================ */
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  stepPhysics(dt);
+  render();
+  const tr = curTrack(), prog = active() ? S.pos / tr.dur : 0;
+  $('aBar').style.width = (prog * 100).toFixed(2) + '%'; $('rB').style.width = (prog * 100).toFixed(2) + '%';
+  $('aPos').textContent = fmt(S.pos); $('aRem').textContent = '-' + fmt(tr.dur - S.pos);
+  $('readout').textContent = `ω ${(S.omega / 6).toFixed(1)} rpm · θ ${S.angle.toFixed(0).padStart(3, ' ')}°`;
+  requestAnimationFrame(frame);
+}
+syncSeg(); setPlayIcons(); applyColours(); setText(false);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

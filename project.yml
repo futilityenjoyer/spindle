@@ -1,0 +1,89 @@
+# XcodeGen manifest — the single source of truth for the Xcode project.
+# The .xcodeproj, Info.plists and entitlements files are generated from this on CI
+# (`xcodegen generate`); edit this file, never the generated project.
+name: Spindle
+
+options:
+  bundleIdPrefix: dev.spindlevinyl
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"   # CI overrides with the run number
+    TARGETED_DEVICE_FAMILY: "1"    # iPhone only
+
+packages:
+  Core:
+    path: Packages/Core            # Foundation-only; also builds and tests on Windows
+  ClockHandKit:
+    url: https://github.com/giljihun/ClockHandKit
+    from: 0.1.2                    # MIT; continuous widget rotation (private WidgetKit effect)
+
+targets:
+  Spindle:
+    type: application
+    platform: iOS
+    sources: [App, Shared]
+    dependencies:
+      - target: SpindleWidget      # embeds the .appex into PlugIns/
+      - package: Core
+    info:
+      path: Config/Spindle-Info.plist
+      properties:
+        CFBundleDisplayName: Spindle
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        SpindleAppGroupBaseID: group.dev.spindlevinyl.shared
+    entitlements:
+      path: Config/Spindle.entitlements
+      properties:
+        # Literal value on purpose: the CI ad-hoc signing step uses this file as-is,
+        # and re-signers (SideStore/Sideloadly) read it to enable the App Group.
+        # Never make the group equal to the bundle ID (SideStore special-cases that).
+        com.apple.security.application-groups:
+          - group.dev.spindlevinyl.shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.spindlevinyl.app
+
+  SpindleWidget:
+    type: app-extension
+    platform: iOS
+    sources: [Widget, Shared]
+    dependencies:
+      - package: Core
+      - package: ClockHandKit
+    info:
+      path: Config/SpindleWidget-Info.plist
+      properties:
+        CFBundleDisplayName: Spindle
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+        SpindleAppGroupBaseID: group.dev.spindlevinyl.shared
+    entitlements:
+      path: Config/SpindleWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.dev.spindlevinyl.shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.spindlevinyl.app.widget   # must be prefixed by the app's ID
+
+schemes:
+  Spindle:
+    build:
+      targets:
+        Spindle: all
+        SpindleWidget: all
+    archive:
+      config: Release

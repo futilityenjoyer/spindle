@@ -1,0 +1,62 @@
+name: ios
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core-tests:
+    name: Core package tests
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift test --package-path Packages/Core
+
+  build-ipa:
+    name: IPA (${{ matrix.name }})
+    needs: core-tests
+    strategy:
+      fail-fast: false
+      # M0 spin spike: the private rotation effect has been reported working when
+      # built with Xcode 27, but our default toolchain is Xcode 26.6. Build both,
+      # install each on the phone, and keep the one that spins.
+      matrix:
+        include:
+          - name: xcode-26.6
+            runner: macos-26
+            xcode: /Applications/Xcode_26.6.app
+          - name: xcode-27
+            runner: xcode-27          # GitHub "preview" image
+            xcode: ""                 # use the image's default Xcode
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          if [ -n "${{ matrix.xcode }}" ]; then sudo xcode-select -s "${{ matrix.xcode }}"; fi
+          xcodebuild -version
+          echo "### ${{ matrix.name }}: $(xcodebuild -version | head -1)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Build, ad-hoc sign with entitlements, package IPA
+        run: bash scripts/make-ipa.sh "Spindle-${{ matrix.name }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Spindle-${{ matrix.name }}
+          path: build/Spindle-${{ matrix.name }}.ipa
+          retention-days: 14
+          if-no-files-found: error

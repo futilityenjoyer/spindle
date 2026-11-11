@@ -1,0 +1,5 @@
+# Keep Unix line endings for files that run on macOS CI
+*.sh text eol=lf
+*.yml text eol=lf
+*.swift text eol=lf
+*.entitlements text eol=lf
