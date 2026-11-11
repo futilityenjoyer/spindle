@@ -152,4 +152,13 @@ See [docs/INSTALL.md](docs/INSTALL.md). In short: push to GitHub → the Actions
 | Vinyl with album art, buttons, spinning | ✅ Owner report: "it works!" |
 | Detailed timing checks (natural track boundary, ⏭ latency, pause from inside Spotify) | Not individually reported; covered by the M6 scenario run |
 
+### MD Vinyl comparison (2026-11-12, owner's own install)
+
+| Behaviour | MD Vinyl | Spindle |
+|---|---|---|
+| Song changed in the Spotify app or Control Center | Widget does **not** update | Not instant either. Queue prediction handles natural song changes; scheduled checks every ~10 min (5 with Responsive); the Shortcuts automation updates on leaving Spotify |
+| Widget ⏮ ⏯ ⏭ | Opens the MD Vinyl app briefly, then it closes | Interactive App Intents run in the background; the widget reloads immediately |
+
+**Conclusion:** MD Vinyl isn't real-time with Spotify; it's bound by the same WidgetKit limits. No paid push or background keep-alive is needed to match it. An opt-in background "Real-time mode" was discussed (free, battery cost) and is not built.
+
 The 12-scenario matrix will live here from M3 onward.
