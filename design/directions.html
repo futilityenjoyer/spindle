@@ -113,6 +113,7 @@ header p { margin: 0; color: var(--muted); max-width: 64ch; }
 .wbtn.plain { background: transparent; width: 34px; height: 34px; }
 .wbtn.plain svg { width: 19px; height: 19px; }
 .textcol.clean .eyebrow { font-size: 13px; line-height: 16px; font-weight: 400; color: var(--w-fg2); opacity: 0.72; margin-bottom: 3px; letter-spacing: -0.005em; }
+.textcol.tint { top: 20px; bottom: 20px; }
 .textcol.tint .toprow { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .textcol.tint .eyebrow { font-size: 12.5px; line-height: 15px; font-weight: 400; color: var(--w-fg2); letter-spacing: -0.005em; }
 .textcol.tint .artist { font-size: 12.5px; line-height: 16px; margin-top: auto; }
@@ -714,7 +715,7 @@ footer { color: var(--muted); font-size: 13px; }
       medium2 = host.querySelector('[data-size="medium2"]');
       medium2.insertAdjacentHTML("afterbegin", '<div class="frost"></div><div class="artbg"></div>');
       makeView(medium2, { kind: "clean", style: "inscribed", labelFrac: 0.66, box: 152, x: 338 - 152 - 2, y: 3, r: 0.44, cx: 0.46, cy: 0.52, pivot: [0.85, 0.16], armLight: false });
-      medium2.insertAdjacentHTML("beforeend", `<div class="textcol tint" style="left:16px;right:166px">
+      medium2.insertAdjacentHTML("beforeend", `<div class="textcol tint" style="left:21px;right:166px">
         <div class="toprow"><div class="eyebrow" data-f="eyebrow">Now Playing</div></div>
         <div class="artist" data-f="artist"></div><div class="title" data-f="title"></div></div>
         <div class="corner" style="right:8px;bottom:8px">${refreshBtn()}</div>`);
