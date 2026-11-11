@@ -15,15 +15,30 @@ ARCHIVE="build/Spindle.xcarchive"
 APP="$ARCHIVE/Products/Applications/Spindle.app"
 APPEX="$APP/PlugIns/SpindleWidget.appex"
 
+mkdir -p build
+LOG="build/xcodebuild.log"
+
+set +e
 xcodebuild archive \
   -project Spindle.xcodeproj \
   -scheme Spindle \
   -configuration Release \
   -destination 'generic/platform=iOS' \
   -archivePath "$ARCHIVE" \
-  -quiet \
   CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
-  CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER:-1}"
+  CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER:-1}" > "$LOG" 2>&1
+status=$?
+set -e
+
+if [ "$status" -ne 0 ]; then
+  # Surface compiler errors as GitHub annotations (shown at the top of the run page),
+  # then the end of the log for context. The full log is uploaded as an artifact.
+  grep -E '(error|fatal error):' "$LOG" | sed -E 's#^.*/(App|Shared|Widget|Packages)/#\1/#' | sort -u | head -40 |
+    while IFS= read -r line; do echo "::error::$line"; done
+  echo "----- last 60 lines of xcodebuild output -----"
+  tail -60 "$LOG"
+  exit "$status"
+fi
 
 if [ ! -d "$APPEX" ]; then
   echo "::error::Widget extension was not embedded in the app"

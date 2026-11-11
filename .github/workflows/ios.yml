@@ -45,6 +45,14 @@ jobs:
       - name: Build, ad-hoc sign with entitlements, package IPA
         run: bash scripts/make-ipa.sh Spindle
 
+      - name: Upload build log (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: build/xcodebuild.log
+          retention-days: 7
+
       - uses: actions/upload-artifact@v4
         with:
           name: Spindle
