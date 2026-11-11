@@ -130,8 +130,8 @@ sequenceDiagram
 
 ### 4.3 Authentication and token storage
 
-- **Login:** PKCE via `ASWebAuthenticationSession`, custom URL scheme redirect, handled with `onOpenURL` (iOS 27 requires the scene life cycle). No client secret anywhere.
-  - **Fallback if Spotify rejects the scheme:** an HTTPS bounce page on GitHub Pages.
+- **Login:** PKCE via `ASWebAuthenticationSession`. No client secret anywhere.
+  - **Redirect (decided 2026-11-12):** Spotify now accepts only HTTPS or loopback redirect URIs, so the redirect is an HTTPS page on GitHub Pages (`https://futilityenjoyer.github.io/spindle/callback/`). It forwards `code`/`state` to `dev.spindlevinyl.auth://callback`, which the auth session intercepts.
 - **Scopes, all requested at first login** (adding one later forces a re-login): `user-read-currently-playing`, `user-read-playback-state`, `user-modify-playback-state`.
 - **Token storage (owner decision, revision 3):** a **protected file** in the App Group container.
   - Protection class `NSFileProtectionCompleteUntilFirstUserAuthentication`, so widgets can read it while the phone is locked after first unlock.
