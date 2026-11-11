@@ -125,6 +125,10 @@ footer { color: var(--muted); font-size: 13px; }
       <button id="btn-dark" aria-pressed="true">Dark</button>
       <button id="btn-light" aria-pressed="false">Light</button>
     </div>
+    <div class="group"><span>Label</span>
+      <button id="btn-fb" aria-pressed="true">Full-bleed</button>
+      <button id="btn-ins" aria-pressed="false">Inscribed</button>
+    </div>
     <div class="group"><span>Zoom</span>
       <button id="btn-z1" aria-pressed="true">Real size</button>
       <button id="btn-z2" aria-pressed="false">2&times;</button>
@@ -172,7 +176,7 @@ footer { color: var(--muted); font-size: 13px; }
     </section>
   </div>
 
-  <footer>Covers, titles and artists are invented placeholders. Spin speed is 16&#8532; RPM (3.6 seconds per turn), as on your widget.</footer>
+  <footer>Label: Full-bleed crops the cover to a circle that turns with the record; Inscribed keeps the whole cover upright. Covers, titles and artists are invented placeholders. Spin speed is 16&#8532; RPM (3.6 seconds per turn), as on your widget.</footer>
 </div>
 
 <script>
@@ -181,7 +185,7 @@ footer { color: var(--muted); font-size: 13px; }
   const TAU = Math.PI * 2;
   const DPR = Math.min(window.devicePixelRatio || 1, 3);
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const state = { playing: true, light: false, zoom: 1, track: 0, angle: 0, arm: 1 };
+  const state = { playing: true, light: false, zoom: 1, track: 0, angle: 0, arm: 1, fullBleed: true };
 
   // ---------- Placeholder covers (drawn, not copied from any real album) ----------
   const TRACKS = [
@@ -380,7 +384,7 @@ footer { color: var(--muted); font-size: 13px; }
 
   function texturesFor(v, px) {
     const pal = palettes[state.track];
-    const key = [px, state.track].join("|");
+    const key = [px, state.track, state.fullBleed].join("|");
     if (v.key === key && v.tex) return v.tex;
     const gloss = v.kind !== "flat";
     const sheenTint = v.kind === "float" ? pal.accent.map((c) => 0.55 + c * 0.45) : null;
@@ -445,6 +449,23 @@ footer { color: var(--muted); font-size: 13px; }
     g.drawImage(img, x, y, side, side); g.restore();
   }
 
+  // The whole cover, cropped to a circle, as the label; it turns with the record.
+  function drawFullBleed(g, cx, cy, labelR, img, a) {
+    g.save();
+    g.translate(cx, cy); g.rotate(a);
+    g.beginPath(); g.arc(0, 0, labelR, 0, TAU); g.clip();
+    g.drawImage(img, -labelR, -labelR, labelR * 2, labelR * 2);
+    g.restore();
+    const shade = g.createRadialGradient(cx, cy, labelR * 0.75, cx, cy, labelR);
+    shade.addColorStop(0, "rgba(0,0,0,0)"); shade.addColorStop(1, "rgba(0,0,0,0.28)");
+    g.fillStyle = shade; g.beginPath(); g.arc(cx, cy, labelR, 0, TAU); g.fill();
+    g.strokeStyle = "rgba(0,0,0,0.45)"; g.lineWidth = Math.max(labelR * 0.02, 1);
+    g.beginPath(); g.arc(cx, cy, labelR, 0, TAU); g.stroke();
+    const hole = Math.max(labelR * 0.06, 2);
+    g.fillStyle = "#0b0b0d"; g.beginPath(); g.arc(cx, cy, hole, 0, TAU); g.fill();
+    g.strokeStyle = "rgba(255,255,255,0.35)"; g.lineWidth = 1; g.beginPath(); g.arc(cx, cy, hole, 0, TAU); g.stroke();
+  }
+
   function drawView(v) {
     const px = Math.round(v.box * state.zoom * DPR);
     if (v.cv.width !== px) { v.cv.width = px; v.cv.height = px; }
@@ -461,7 +482,8 @@ footer { color: var(--muted); font-size: 13px; }
     g.drawImage(t.disc, cx - R, cy - R, R * 2, R * 2);
     g.save(); g.translate(cx, cy); g.rotate(a); g.drawImage(t.rot, -R, -R, R * 2, R * 2); g.restore();
     g.save(); g.globalCompositeOperation = "screen"; g.drawImage(t.sheen, cx - R, cy - R, R * 2, R * 2); g.restore();
-    if (v.style === "inscribed") drawInscribed(g, cx, cy, R * v.labelFrac, covers[state.track]);
+    if (v.style === "inscribed" && state.fullBleed) drawFullBleed(g, cx, cy, R * v.labelFrac, covers[state.track], a);
+    else if (v.style === "inscribed") drawInscribed(g, cx, cy, R * v.labelFrac, covers[state.track]);
     else { g.fillStyle = "#0b0b0d"; g.beginPath(); g.arc(cx, cy, Math.max(R * 0.03, 2), 0, TAU); g.fill(); }
     if (v.kind === "turntable") drawTonearm(g, W, cx, cy, R, state.arm, !state.light);
     if (v.kind === "clean") drawCleanArm(g, W, cx, cy, R, state.arm, v.pivot, state.light);
@@ -620,6 +642,13 @@ footer { color: var(--muted); font-size: 13px; }
     $("btn-z1").setAttribute("aria-pressed", String(z === 1)); $("btn-z2").setAttribute("aria-pressed", String(z === 2));
     cols.forEach(applyZoom); views.forEach((v) => { v.key = ""; });
   }
+  function setFullBleed(on) {
+    state.fullBleed = on;
+    $("btn-fb").setAttribute("aria-pressed", String(on)); $("btn-ins").setAttribute("aria-pressed", String(!on));
+    views.forEach((v) => { v.key = ""; });
+  }
+  $("btn-fb").addEventListener("click", () => setFullBleed(true));
+  $("btn-ins").addEventListener("click", () => setFullBleed(false));
   $("btn-z1").addEventListener("click", () => setZoom(1));
   $("btn-z2").addEventListener("click", () => setZoom(2));
   document.addEventListener("click", (e) => {
