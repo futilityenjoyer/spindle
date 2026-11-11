@@ -35,6 +35,16 @@ final class AppGroupResolverTests: XCTestCase {
         XCTAssertEqual(id, "group.renamed.by.tool")
     }
 
+    func testIloaderNamesGroupAfterBundleID() {
+        // Device test 3 (2026-11-12): iloader registered "group.<bundle ID>.<TEAMID>",
+        // which shares no prefix with our authored group. It must still be found.
+        let iloaderGroup = "group.dev.spindlevinyl.app.4K99FM682B"
+        let id = AppGroupResolver.resolve(baseID: base, altAppGroups: [], profileGroups: [iloaderGroup]) {
+            $0 == iloaderGroup
+        }
+        XCTAssertEqual(id, iloaderGroup)
+    }
+
     func testNilWhenNothingUsable() {
         XCTAssertNil(AppGroupResolver.resolve(baseID: base, altAppGroups: [], profileGroups: [base + ".X"]) { _ in false })
     }

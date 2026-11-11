@@ -1,7 +1,9 @@
 /// Works out which App Group this signed binary can actually use.
 ///
 /// We author `group.dev.spindlevinyl.shared`, but re-signers rewrite it:
-/// AltStore and SideStore append `.<TEAMID>`; Sideloadly's behaviour is undocumented.
+/// AltStore and SideStore append `.<TEAMID>`; iloader (device-tested) registers
+/// `group.<bundle ID>.<TEAMID>` instead; Sideloadly grants no group at all on a
+/// free Apple ID (device-tested).
 /// The app and the widget are re-signed in the same pass, so they receive the same
 /// rewritten group — they just have to discover it the same way. Both call this.
 public enum AppGroupResolver {

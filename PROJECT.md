@@ -1,7 +1,7 @@
 # Vinyl widget for Spotify: central project document
 
 Working title: **Spindle** (placeholder; must not start with "Spot" per Spotify branding rules).
-Last updated: 2026-11-11, end of Phase 1.
+Last updated: 2026-11-12, M0 device testing.
 
 ## Status
 
@@ -9,10 +9,10 @@ Last updated: 2026-11-11, end of Phase 1.
 |---|---|
 | 1 Feasibility research | ✅ Done: [docs/FEASIBILITY.md](docs/FEASIBILITY.md) |
 | 2 Architecture & planning | ✅ Done; owner decisions recorded below |
-| 3 Core development | 🔨 **M0 in progress.** ✅ CI builds and installs via Sideloadly; ✅ **widget spins on iOS 27.2** (Xcode 26.6 build). ❌ **App Group not granted** after Sideloadly re-signing (see Testing results). Blocks M1. |
+| 3 Core development | 🔨 **M0 nearly done.** ✅ CI builds; ✅ **widget spins on iOS 27.2** (Xcode 26.6 build); ✅ **App Group works via iloader**. Remaining: confirm the widget heartbeat (widget side of the shared folder). |
 | 4 Optimisation | Not started |
 | 5 Testing | Not started |
-| 6 Deployment docs | Research done ([06-build-infrastructure.md](docs/research/06-build-infrastructure.md)); guide not yet written |
+| 6 Deployment docs | Install guide: [docs/INSTALL.md](docs/INSTALL.md) (iloader) |
 
 ## Current architecture (summary)
 
@@ -26,7 +26,7 @@ Full detail: [FEASIBILITY.md §4](docs/FEASIBILITY.md#4-recommended-architecture
   - Continuous spin via vendored ClockHandKit (private effect), with a static fallback.
 - **Shared state:** App Group container: snapshot JSON, artwork LRU, event log, and the Spotify token in a protected, backup-excluded file.
 - **Auth:** PKCE through `ASWebAuthenticationSession`, custom URL scheme, no client secret.
-- **Build:** XcodeGen + GitHub Actions `macos-26` → entitlement-correct unsigned `.ipa` → SideStore/Sideloadly with a free Apple ID.
+- **Build:** XcodeGen + GitHub Actions `macos-26` → entitlement-correct ad-hoc-signed `.ipa` → **iloader** "Import IPA" with a free Apple ID (weekly re-install by USB).
 - **Deployment target:** iOS 26.0 (matches CI simulators); test on iOS 26.x and 27.x.
 
 ## Decision log
@@ -40,7 +40,8 @@ Full detail: [FEASIBILITY.md §4](docs/FEASIBILITY.md#4-recommended-architecture
 | 2026-11-11 | **No MetricKit / battery-metrics screen**; battery is judged via Settings › Battery | Owner preference; keeps Diagnostics to a simple reload/request log |
 | 2026-11-11 | **Widget buttons: play/pause + skip** (each tap force-refreshes the widget) | Fixes staleness for anything done from the widget; changes made elsewhere are still caught at the ~10 min reload |
 | 2026-11-12 | **CI pinned to Xcode 26.6**; Xcode 27 preview build dropped | Device test: the 26.6 build spins on iOS 27.2 |
-| 2026-11-12 | **Install tool: SideStore** (replaces Sideloadly) | Sideloadly grants no App Group on free accounts (device test 2). SideStore documents App Group support and refreshes on the phone. |
+| 2026-11-12 | **Install tool: iloader** "Import IPA" (replaces SideStore and Sideloadly) | Device test 3: iloader signs in and registers an App Group. SideStore in-app sign-in fails with -80045 (open upstream bug #1709). Trade-off: weekly re-install by USB from the PC. Retry SideStore once fixed, for on-device refresh. |
+| 2026-11-12 | ~~Install tool: SideStore~~ (superseded by the row above) | Sideloadly grants no App Group on free accounts (device test 2). SideStore documents App Group support and refreshes on the phone. |
 | 2026-11-12 | **Widget speed: 16⅔ RPM** (3.6 s per turn) | Owner compared 16⅔ vs 33⅓ side by side on the device and preferred the slower one |
 | 2026-11-11 | **Token storage: protected App Group file** (not Keychain) | Can't break on weekly re-signing. Excluded from backup; readable only by app + widget. |
 | 2026-11-11 | **Widget sizes: Small + Medium**, as in the prototype | Owner choice. Small = record + play/pause; Medium = record + track/artist + play/pause + skip |
@@ -89,7 +90,7 @@ See [FEASIBILITY.md §7](docs/FEASIBILITY.md#7-compromises-explicit-not-hidden).
 
 ## Build instructions
 
-See [docs/INSTALL.md](docs/INSTALL.md). In short: push to GitHub → the Actions "ios" workflow builds the IPAs → download the artifact → install with SideStore using your free Apple ID. Pipeline research: [06-build-infrastructure.md](docs/research/06-build-infrastructure.md).
+See [docs/INSTALL.md](docs/INSTALL.md). In short: push to GitHub → the Actions "ios" workflow builds the IPAs → download the artifact → install with iloader using your free Apple ID. Pipeline research: [06-build-infrastructure.md](docs/research/06-build-infrastructure.md).
 
 - **Bundle ID:** `dev.spindlevinyl.app`, widget `dev.spindlevinyl.app.widget`.
 - **App Group:** `group.dev.spindlevinyl.shared`.
@@ -117,5 +118,15 @@ See [docs/INSTALL.md](docs/INSTALL.md). In short: push to GitHub → the Actions
 | Profile name | "iOS Team Provisioning Profile: dev.spindlevinyl.app.4K99FM682B" |
 
 **Conclusion:** Sideloadly (free Apple ID) does not enable the App Groups capability, even though the IPA's ad-hoc signature carries the entitlement (verified in CI). This isn't a resolver bug. The fix is to sideload with a tool that documents App Group support (SideStore / AltStore), or to use the paid program.
+
+### M0 device test 3 (2026-11-12): iloader "Import IPA"
+
+| Check | Result |
+|---|---|
+| SideStore (attempted first) | ❌ In-app Apple ID sign-in fails with **-80045** (known open SideStore bug, [#1709](https://github.com/SideStore/SideStore/issues/1709)); community anisette workaround didn't help |
+| iloader sign-in + install | ✅ |
+| Groups in profile | `group.dev.spindlevinyl.app.4K99FM682B` (iloader names the group after the bundle ID) |
+| Resolved ID / Shared folder | ✅ Same value / OK. Found via the resolver's last-resort rule; unit test added |
+| Widget heartbeat | Pending: widget had to be re-added after the reinstall |
 
 The 12-scenario matrix will live here from M3 onward.
