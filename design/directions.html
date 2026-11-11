@@ -113,6 +113,12 @@ header p { margin: 0; color: var(--muted); max-width: 64ch; }
 .wbtn.plain { background: transparent; width: 34px; height: 34px; }
 .wbtn.plain svg { width: 19px; height: 19px; }
 .textcol.clean .eyebrow { font-size: 13px; line-height: 16px; font-weight: 400; color: var(--w-fg2); opacity: 0.72; margin-bottom: 3px; letter-spacing: -0.005em; }
+.textcol.tint .toprow { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.textcol.tint .eyebrow { font-size: 14px; line-height: 17px; font-weight: 400; color: var(--w-fg2); letter-spacing: -0.005em; }
+.textcol.tint .artist { font-size: 14px; line-height: 18px; margin-top: auto; }
+.textcol.tint .title { font-size: 19px; line-height: 23px; font-weight: 500; letter-spacing: -0.01em; }
+.wbtn.tiny { width: 22px; height: 22px; background: transparent; margin-right: -4px; }
+.wbtn.tiny svg { width: 13px; height: 13px; opacity: 0.55; }
 .textcol.clean .title { font-size: 17px; line-height: 21px; font-weight: 700; letter-spacing: -0.015em; }
 .textcol.clean .artist { font-size: 14px; line-height: 19px; }
 .textcol.clean .ctrls { margin-top: auto; gap: 10px; margin-left: -6px; }
@@ -182,6 +188,7 @@ footer { color: var(--muted); font-size: 13px; }
         <li><strong>Fewer things.</strong> A faint "Now Playing" (or "Paused"), title, artist, three controls and one record. No sleeve, no button circles.</li>
         <li><strong>Two anchors.</strong> Bold text pinned top-left, controls bottom-left, a large record on the right with a silver tonearm.</li>
         <li><strong>Silver base, cover in the middle.</strong> Smooth silver, more opaque toward the edges; a soft, blurred copy of the album art rises toward the centre. Dark graphite text and controls; a silver tonearm with a dark pivot block and headshell.</li>
+        <li><strong>Medium &middot; no buttons.</strong> Same record and arm on a deep colour from the cover, with the blurred cover in the middle. Faint "Now Playing" and a small refresh button at the top; artist and a larger title at the bottom.</li>
       </ul>
     </section>
   </div>
@@ -296,6 +303,7 @@ footer { color: var(--muted); font-size: 13px; }
       label: rgbFromHsv(h, Math.min(Math.max(s * 0.85, 0.35), 0.75), 0.62),
       edge: [er / en, eg / en, eb / en],
       accent: picks[0].rgb,
+      tone: rgbFromHsv(h, Math.min(Math.max(s * 0.8, 0.35), 0.7), 0.36),
       mesh,
     };
   }
@@ -651,7 +659,7 @@ footer { color: var(--muted); font-size: 13px; }
     else if (v.style === "inscribed") drawInscribed(g, cx, cy, R * v.labelFrac, covers[state.track]);
     else { g.fillStyle = "#0b0b0d"; g.beginPath(); g.arc(cx, cy, Math.max(R * 0.03, 2), 0, TAU); g.fill(); }
     if (v.kind === "turntable") drawArm(g, W, cx, cy, R, state.arm, { variant: "classic", pivot: [0.86, 0.14], reach: [0.77, -0.28], lift: 0.42, offset: 0.38, tube: 0.05, light: state.light });
-    if (v.kind === "clean") drawArm(g, W, cx, cy, R, state.arm, { variant: "silver", pivot: v.pivot, reach: [0.587, 0.587], lift: 0.4, offset: 0.24, tube: 0.05, light: true });
+    if (v.kind === "clean") drawArm(g, W, cx, cy, R, state.arm, { variant: "silver", pivot: v.pivot, reach: [0.587, 0.587], lift: 0.4, offset: 0.24, tube: 0.05, light: v.armLight !== false });
   }
 
   // ---------- Widget markup ----------
@@ -660,8 +668,11 @@ footer { color: var(--muted); font-size: 13px; }
     play: '<svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg>',
     pause: '<svg viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>',
     next: '<svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>',
+    refresh: '<svg viewBox="0 0 24 24"><path d="M12 5V2L8 6l4 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z"/></svg>',
   };
   const btn = (kind, glass, plain) => `<button class="wbtn${glass ? " glass" : ""}${plain ? " plain" : ""}" data-act="${kind}" aria-label="${kind === "play" ? "Play or pause" : kind === "next" ? "Next track" : "Previous track"}">${kind === "play" ? (state.playing ? ICON.pause : ICON.play) : ICON[kind]}</button>`;
+
+  const refreshBtn = () => `<button class="wbtn tiny" data-act="refresh" aria-label="Refresh">${ICON.refresh}</button>`;
 
   function grainURL() {
     const c = document.createElement("canvas"); c.width = c.height = 128;
@@ -689,6 +700,7 @@ footer { color: var(--muted); font-size: 13px; }
       <div class="cap">Medium</div>`;
     const small = host.querySelector(".w-small"), medium = host.querySelector(".w-medium");
     const glass = dir === "art";
+    let medium2 = null;
     if (dir === "clean") {
       for (const w of [small, medium]) w.insertAdjacentHTML("afterbegin", '<div class="frost"></div><div class="artbg"></div>');
       makeView(small, { kind: "clean", style: "inscribed", labelFrac: 0.66, box: 158, x: 0, y: 0, r: 0.4, cx: 0.46, cy: 0.52, pivot: [0.83, 0.17] });
@@ -698,6 +710,13 @@ footer { color: var(--muted); font-size: 13px; }
         <div class="eyebrow" data-f="eyebrow">Now Playing</div>
         <div class="title" data-f="title"></div><div class="artist" data-f="artist"></div>
         <div class="ctrls">${btn("prev", false, true)}${btn("play", false, true)}${btn("next", false, true)}</div></div>`);
+      host.insertAdjacentHTML("beforeend", '<div class="w w-medium" data-size="medium2"><div class="bg"></div><div class="glow"></div><div class="grain"></div></div><div class="cap">Medium &middot; no buttons</div>');
+      medium2 = host.querySelector('[data-size="medium2"]');
+      medium2.insertAdjacentHTML("afterbegin", '<div class="frost"></div><div class="artbg"></div>');
+      makeView(medium2, { kind: "clean", style: "inscribed", labelFrac: 0.66, box: 152, x: 338 - 152 - 2, y: 3, r: 0.44, cx: 0.46, cy: 0.52, pivot: [0.85, 0.16], armLight: false });
+      medium2.insertAdjacentHTML("beforeend", `<div class="textcol tint" style="left:16px;right:166px">
+        <div class="toprow"><div class="eyebrow" data-f="eyebrow">Now Playing</div>${refreshBtn()}</div>
+        <div class="artist" data-f="artist"></div><div class="title" data-f="title"></div></div>`);
     } else if (dir === "turntable") {
       makeView(small, { kind: "turntable", style: "inscribed", labelFrac: 0.66, box: 158, x: 0, y: 0, r: 0.345, cx: 0.44, cy: 0.52 });
       small.insertAdjacentHTML("beforeend", `<div class="corner" style="left:11px;bottom:11px">${btn("play", false)}</div>`);
@@ -710,22 +729,31 @@ footer { color: var(--muted); font-size: 13px; }
       makeView(medium, { kind, style: "plain", labelFrac: 0.5, box: 126, x: 16 + 48, y: 16, r: 0.5, cx: 0.5, cy: 0.5 });
       medium.insertAdjacentHTML("beforeend", `<img class="sleeve" alt="" style="left:16px;top:16px;width:126px;height:126px">` + textCol(204, glass));
     }
-    col._parts = { dir, small, medium };
+    col._parts = { dir, small, medium, medium2 };
   }
 
   // ---------- Apply state ----------
   function paint(col) {
-    const { dir, small, medium } = col._parts;
+    const { dir, small, medium, medium2 } = col._parts;
     const pal = palettes[state.track], tr = TRACKS[state.track], light = state.light;
     const wallClass = dir === "clean" ? (light ? "photo-light" : "photo-dark") : (light ? "light" : "dark");
     col.querySelector(".wall").className = "wall " + wallClass;
-    for (const w of [small, medium]) {
+    for (const w of [small, medium, medium2].filter(Boolean)) {
       const bg = w.querySelector(".bg"), glow = w.querySelector(".glow"), grain = w.querySelector(".grain");
       let fg = light ? "rgba(17,17,19,0.92)" : "rgba(255,255,255,0.95)";
       let fg2 = light ? "rgba(17,17,19,0.55)" : "rgba(255,255,255,0.62)";
       let ctl = light ? "rgba(0,0,0,0.07)" : "rgba(255,255,255,0.14)";
       grain.style.backgroundImage = "none"; glow.style.background = "none";
-      if (dir === "clean") {
+      if (dir === "clean" && w === medium2) {
+        // Album-art colour at the edges, blurred cover in the middle, white text.
+        const tone = pal.tone.map((v) => Math.round(v * 255)).join(", ");
+        w.querySelector(".frost").style.background = `rgb(${tone})`;
+        const art = w.querySelector(".artbg");
+        art.style.backgroundImage = `url(${coverURLs[state.track]})`; art.style.opacity = "0.9";
+        bg.style.background = `linear-gradient(to right, rgba(${tone}, 0.95) 0%, rgba(${tone}, 0.35) 18%, rgba(${tone}, 0) 34%, rgba(${tone}, 0) 70%, rgba(${tone}, 0.55) 88%, rgba(${tone}, 0.9) 100%)`;
+        fg = "rgba(255,255,255,0.97)";
+        fg2 = "rgba(255,255,255,0.62)";
+      } else if (dir === "clean") {
         const frost = w.querySelector(".frost");
         if (frost) frost.style.background =
           "linear-gradient(125deg, #e4e6e9 0%, #c3c7cc 28%, #f3f4f6 50%, #b9bdc3 74%, #dcdee2 100%)";
@@ -763,6 +791,11 @@ footer { color: var(--muted); font-size: 13px; }
     if (sleeve) sleeve.src = coverURLs[state.track];
     medium.querySelector('[data-f="title"]').textContent = tr.title;
     medium.querySelector('[data-f="artist"]').textContent = tr.artist;
+    if (medium2) {
+      medium2.querySelector('[data-f="title"]').textContent = tr.title;
+      medium2.querySelector('[data-f="artist"]').textContent = tr.artist;
+      medium2.querySelector('[data-f="eyebrow"]').textContent = state.playing ? "Now Playing" : "Paused";
+    }
     const eyebrow = medium.querySelector('[data-f="eyebrow"]');
     if (eyebrow) eyebrow.textContent = state.playing ? "Now Playing" : "Paused";
     const statusEl = medium.querySelector('[data-f="status"]');
@@ -806,6 +839,7 @@ footer { color: var(--muted); font-size: 13px; }
   document.addEventListener("click", (e) => {
     const b = e.target.closest(".wbtn"); if (!b) return;
     const act = b.dataset.act;
+    if (act === "refresh") { b.animate([{ transform: "rotate(0deg)" }, { transform: "rotate(360deg)" }], { duration: 600, easing: "ease-out" }); return; }
     if (act === "play") setPlaying(!state.playing);
     else step(act === "next" ? 1 : -1);
   });
