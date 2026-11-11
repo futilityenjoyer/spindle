@@ -9,7 +9,7 @@ Last updated: 2026-11-12, M0 device testing.
 |---|---|
 | 1 Feasibility research | ✅ Done: [docs/FEASIBILITY.md](docs/FEASIBILITY.md) |
 | 2 Architecture & planning | ✅ Done; owner decisions recorded below |
-| 3 Core development | ✅ **M0 done** (2026-11-12). ✅ **M1 done** (2026-11-12): Spotify PKCE sign-in via the GitHub Pages return page; token shared with the widget; widget shows the current track and spins only while playing. **Next: M2, vinyl renderer with full-bleed album art.** |
+| 3 Core development | ✅ M0, ✅ M1 (2026-11-12). 🔨 **M2+M4 combined, written, not yet compiled or device-tested:** real vinyl (60% full-bleed art label, grooves, static sheen), artwork cache, queue-predicting timeline with last-seen stop, play/pause + skip buttons, Low Power Mode / Reduce Motion / Always-On handling. |
 | 4 Optimisation | Not started |
 | 5 Testing | Not started |
 | 6 Deployment docs | Install guide: [docs/INSTALL.md](docs/INSTALL.md) (iloader) |
@@ -40,6 +40,8 @@ Full detail: [FEASIBILITY.md §4](docs/FEASIBILITY.md#4-recommended-architecture
 | 2026-11-11 | **No MetricKit / battery-metrics screen**; battery is judged via Settings › Battery | Owner preference; keeps Diagnostics to a simple reload/request log |
 | 2026-11-11 | **Widget buttons: play/pause + skip** (each tap force-refreshes the widget) | Fixes staleness for anything done from the widget; changes made elsewhere are still caught at the ~10 min reload |
 | 2026-11-12 | **CI pinned to Xcode 26.6**; Xcode 27 preview build dropped | Device test: the 26.6 build spins on iOS 27.2 |
+| 2026-11-12 | **Album art label = 60% of the disc** (was 38% in M0) | Owner wants the art to dominate; one constant (`VinylStyle.labelFraction`) |
+| 2026-11-12 | **M2 and M4 merged into one build; CI widget renders deferred** | Owner asked to speed up; fewer installs. Trade-off: more new code compiled at once |
 | 2026-11-12 | **Spotify redirect URI: `https://futilityenjoyer.github.io/spindle/callback/`** (GitHub Pages page [docs/callback/index.html](docs/callback/index.html) forwards to `dev.spindlevinyl.auth://callback`) | Spotify's redirect-URI rules allow only HTTPS or loopback for apps created after 9 Apr 2025; custom schemes aren't listed. PKCE makes the forwarded code useless to others. |
 | 2026-11-12 | **Install tool: iloader** "Import IPA" (replaces SideStore and Sideloadly) | Device test 3: iloader signs in and registers an App Group. SideStore in-app sign-in fails with -80045 (open upstream bug #1709). Trade-off: weekly re-install by USB from the PC. Retry SideStore once fixed, for on-device refresh. |
 | 2026-11-12 | ~~Install tool: SideStore~~ (superseded by the row above) | Sideloadly grants no App Group on free accounts (device test 2). SideStore documents App Group support and refreshes on the phone. |

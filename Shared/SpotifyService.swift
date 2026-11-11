@@ -31,6 +31,20 @@ enum SpotifyService {
     static func signOut() {
         TokenStore.delete()
         SharedStore.deleteSnapshot()
+        ArtworkCache.purge()
+    }
+
+    // MARK: Control (widget buttons; Premium only)
+
+    /// Sends play/pause/skip, then discards the cached snapshot so the reload that
+    /// follows the button tap fetches the new state instead of reusing the old one.
+    static func perform(_ command: SpotifyAPI.PlayerCommand) async throws {
+        defer { SharedStore.deleteSnapshot() }
+        do {
+            _ = try await send(SpotifyAPI.commandRequest(command, accessToken: try await validAccessToken()))
+        } catch Failure.api(.unauthorized) {
+            _ = try await send(SpotifyAPI.commandRequest(command, accessToken: try await validAccessToken(forceRefresh: true)))
+        }
     }
 
     // MARK: Tokens

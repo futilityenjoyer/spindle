@@ -12,6 +12,7 @@ struct DiagnosticsView: View {
     @State private var heartbeats: [WidgetHeartbeat] = []
     @State private var spotify: SpotifyState = .checking
     @State private var isWorking = false
+    @State private var labelImage: CGImage?
 
     enum SpotifyState {
         case checking
@@ -24,11 +25,12 @@ struct DiagnosticsView: View {
         NavigationStack {
             List {
                 Section {
+                    // Still preview of the widget's record with the current album art.
                     ZStack {
-                        VinylDisc()
+                        VinylDisc(label: labelImage)
                         VinylSheen()
                     }
-                    .frame(height: 180)
+                    .frame(height: 220)
                     .frame(maxWidth: .infinity)
                     .listRowBackground(Color.clear)
                 }
@@ -104,6 +106,7 @@ struct DiagnosticsView: View {
                 Button("Disconnect Spotify", role: .destructive) {
                     SpotifyService.signOut()
                     WidgetCenter.shared.reloadAllTimelines()
+                    labelImage = nil
                     spotify = .signedOut(note: nil)
                 }
 
@@ -114,6 +117,7 @@ struct DiagnosticsView: View {
                 Button("Disconnect Spotify", role: .destructive) {
                     SpotifyService.signOut()
                     WidgetCenter.shared.reloadAllTimelines()
+                    labelImage = nil
                     spotify = .signedOut(note: nil)
                 }
             }
@@ -175,6 +179,12 @@ struct DiagnosticsView: View {
         do {
             let snapshot = try await SpotifyService.fetchPlayback()
             spotify = .connected(snapshot)
+            if let item = snapshot.nowPlaying?.item, let remote = ArtworkCache.remoteURL(for: item) {
+                labelImage = await ArtworkCache.images(for: [item], maxPixelSize: 660)[remote]
+            } else {
+                labelImage = nil
+            }
+            // Reloads requested while the app is open don't use the widget's daily budget.
             WidgetCenter.shared.reloadAllTimelines()
         } catch SpotifyService.Failure.notSignedIn {
             spotify = .signedOut(note: nil)

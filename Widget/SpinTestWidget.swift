@@ -1,35 +1,48 @@
+import AppIntents
 import WidgetKit
 import SwiftUI
 import ClockHandKit
 import Core
 
-// M1 widget: shows what Spotify is playing and spins only while it plays.
-// Album art arrives in M2; the queue-predicting timeline and buttons in M4.
-// The kind stays "SpinTest" so widgets already on the Home Screen keep working.
+// The Spindle widget. The kind stays "SpinTest" (its M0 name) so widgets already on
+// the Home Screen keep working after updates.
 
-/// What the widget shows, derived from a playback snapshot or a failure.
-enum WidgetPlayback {
+/// What one timeline entry shows.
+enum WidgetDisplay {
     case notConnected
     case waitingForUnlock
-    case nothingPlaying
-    case playing(PlayableItem, isPlaying: Bool)
+    case idle
+    case item(PlayableItem, isPlaying: Bool, isStale: Bool)
     case advertisement(isPlaying: Bool)
     case problem(String)
 
-    init(_ snapshot: PlaybackSnapshot) {
-        guard let now = snapshot.nowPlaying else { self = .nothingPlaying; return }
-        if let item = now.item {
-            self = .playing(item, isPlaying: now.isPlaying)
-        } else if now.kind == .ad {
-            self = .advertisement(isPlaying: now.isPlaying)
+    init(_ planned: PlannedEntry) {
+        if planned.isAdvertisement {
+            self = .advertisement(isPlaying: planned.isPlaying)
+        } else if let item = planned.item {
+            self = .item(item, isPlaying: planned.isPlaying, isStale: planned.isStale)
         } else {
-            self = .nothingPlaying
+            self = .idle
         }
     }
 
     var isPlaying: Bool {
         switch self {
-        case .playing(_, let isPlaying), .advertisement(let isPlaying): return isPlaying
+        case .item(_, let isPlaying, _), .advertisement(let isPlaying): return isPlaying
+        default: return false
+        }
+    }
+
+    var isStale: Bool {
+        if case .item(_, _, true) = self { return true }
+        return false
+    }
+
+    /// Play/pause and skip only make sense when we know what's playing.
+    var showsControls: Bool {
+        switch self {
+        case .item(_, _, let isStale): return !isStale
+        case .advertisement: return true
         default: return false
         }
     }
@@ -38,8 +51,8 @@ enum WidgetPlayback {
         switch self {
         case .notConnected: return "Connect Spotify"
         case .waitingForUnlock: return "Unlock to update"
-        case .nothingPlaying: return "Nothing playing"
-        case .playing(let item, _): return item.title
+        case .idle: return "Nothing playing"
+        case .item(let item, _, _): return item.title
         case .advertisement: return "Advertisement"
         case .problem: return "Can't reach Spotify"
         }
@@ -48,70 +61,102 @@ enum WidgetPlayback {
     var subtitle: String {
         switch self {
         case .notConnected: return "Open Spindle to sign in"
-        case .playing(let item, _): return item.subtitle
+        case .item(let item, _, _): return item.subtitle
         case .problem(let message): return message
         default: return ""
-        }
-    }
-
-    /// How long until iOS should ask for a new timeline. Simple for M1; the
-    /// queue-predicting planner (FEASIBILITY §4.7) replaces this in M4.
-    var nextReload: TimelineReloadPolicy {
-        switch self {
-        case .notConnected: return .never   // the app reloads the widget after sign-in
-        case .waitingForUnlock: return .after(Date().addingTimeInterval(15 * 60))
-        case .playing, .advertisement: return .after(Date().addingTimeInterval(isPlaying ? 10 * 60 : 30 * 60))
-        case .nothingPlaying: return .after(Date().addingTimeInterval(60 * 60))
-        case .problem: return .after(Date().addingTimeInterval(30 * 60))
-        }
-    }
-
-    /// Reuse the app's (or another widget's) fetch if it's under a minute old;
-    /// otherwise make one request burst to Spotify.
-    static func load() async -> WidgetPlayback {
-        if let snapshot = SharedStore.loadSnapshot(), snapshot.isFresh(now: Date()) {
-            return WidgetPlayback(snapshot)
-        }
-        do {
-            return WidgetPlayback(try await SpotifyService.fetchPlayback())
-        } catch SpotifyService.Failure.notSignedIn {
-            return .notConnected
-        } catch SpotifyService.Failure.api(.invalidGrant) {
-            return .notConnected
-        } catch SpotifyService.Failure.waitingForUnlock {
-            return .waitingForUnlock
-        } catch SpotifyService.Failure.network {
-            return .problem("Offline")
-        } catch SpotifyService.Failure.api(.forbidden) {
-            return .problem("Access refused — open Spindle")
-        } catch {
-            return .problem("Open Spindle for details")
         }
     }
 }
 
 struct SpindleEntry: TimelineEntry {
     let date: Date
-    let playback: WidgetPlayback
+    let display: WidgetDisplay
+    let label: CGImage?
+    let fetchedAt: Date?
+    let lowPower: Bool
 }
 
 struct SpindleProvider: TimelineProvider {
+    /// Label art is decoded at this size (≈ the largest label × 3 px/pt, StandBy included).
+    private let labelPixels = 360
+
     func placeholder(in context: Context) -> SpindleEntry {
-        SpindleEntry(date: Date(), playback: .nothingPlaying)
+        SpindleEntry(date: Date(), display: .idle, label: nil, fetchedAt: nil, lowPower: false)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (SpindleEntry) -> Void) {
-        // Gallery preview: show the last known state without touching the network.
-        let playback = SharedStore.loadSnapshot().map(WidgetPlayback.init) ?? .nothingPlaying
-        completion(SpindleEntry(date: Date(), playback: playback))
+        // Widget gallery preview: last known state, cached art only, no network.
+        Task {
+            let lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
+            guard let snapshot = SharedStore.loadSnapshot(),
+                  let first = TimelinePlanner.plan(snapshot, now: Date(), lowPower: lowPower).entries.first
+            else {
+                completion(placeholder(in: context))
+                return
+            }
+            let images = await ArtworkCache.images(for: first.item.map { [$0] } ?? [], maxPixelSize: labelPixels, download: false)
+            completion(SpindleEntry(date: Date(), display: WidgetDisplay(first),
+                                    label: first.item.flatMap { ArtworkCache.remoteURL(for: $0) }.flatMap { images[$0] },
+                                    fetchedAt: snapshot.fetchedAt, lowPower: lowPower))
+        }
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<SpindleEntry>) -> Void) {
         SharedStore.recordHeartbeat(family: String(describing: context.family))
         Task {
-            let playback = await WidgetPlayback.load()
-            let entry = SpindleEntry(date: Date(), playback: playback)
-            completion(Timeline(entries: [entry], policy: playback.nextReload))
+            let now = Date()
+            let lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
+
+            let snapshot: PlaybackSnapshot
+            do {
+                snapshot = try await Self.loadSnapshot()
+            } catch {
+                let (display, reload) = Self.failureDisplay(error, now: now)
+                let entry = SpindleEntry(date: now, display: display, label: nil, fetchedAt: nil, lowPower: lowPower)
+                completion(Timeline(entries: [entry], policy: reload))
+                return
+            }
+
+            let plan = TimelinePlanner.plan(snapshot, now: now, lowPower: lowPower)
+            // Covers for every planned track, downloaded in one burst now so later
+            // entries render without network access.
+            let images = await ArtworkCache.images(for: plan.entries.compactMap(\.item), maxPixelSize: labelPixels)
+            let entries = plan.entries.map { planned in
+                SpindleEntry(date: planned.date,
+                             display: WidgetDisplay(planned),
+                             label: planned.item.flatMap { ArtworkCache.remoteURL(for: $0) }.flatMap { images[$0] },
+                             fetchedAt: snapshot.fetchedAt,
+                             lowPower: lowPower)
+            }
+            completion(Timeline(entries: entries, policy: .after(plan.reloadAt)))
+        }
+    }
+
+    /// Reuse a fetch under a minute old (by the app or another widget); else one burst to Spotify.
+    private static func loadSnapshot() async throws -> PlaybackSnapshot {
+        if let cached = SharedStore.loadSnapshot(), cached.isFresh(now: Date()) { return cached }
+        return try await SpotifyService.fetchPlayback()
+    }
+
+    private static func failureDisplay(_ error: Error, now: Date) -> (WidgetDisplay, TimelineReloadPolicy) {
+        let generic: (WidgetDisplay, TimelineReloadPolicy) =
+            (.problem("Open Spindle for details"), .after(now.addingTimeInterval(30 * 60)))
+        guard let failure = error as? SpotifyService.Failure else { return generic }
+
+        switch failure {
+        case .notSignedIn, .api(.invalidGrant):
+            return (.notConnected, .never)   // the app reloads the widget after sign-in
+        case .waitingForUnlock:
+            return (.waitingForUnlock, .after(now.addingTimeInterval(15 * 60)))
+        case .network:
+            return (.problem("Offline"), .after(now.addingTimeInterval(30 * 60)))
+        case .api(.forbidden):
+            return (.problem("Access refused — open Spindle"), .after(now.addingTimeInterval(60 * 60)))
+        case .api(.rateLimited(let retryAfter, let quotaExceeded)):
+            let wait: TimeInterval = quotaExceeded ? 24 * 3600 : max(retryAfter ?? 0, 30 * 60)
+            return (.problem("Spotify asked to wait"), .after(now.addingTimeInterval(wait)))
+        default:
+            return generic
         }
     }
 }
@@ -127,8 +172,10 @@ struct SpinTestWidget: Widget {
     }
 }
 
-/// A record that turns at 16⅔ RPM while `spinning`, under a static sheen.
+/// A record that turns at 16⅔ RPM (3.6 s per turn) while `spinning`, under a static sheen.
+/// The angle comes from the clock, so it doesn't jump when the track or timeline changes.
 struct RecordView: View {
+    let label: CGImage?
     let spinning: Bool
 
     var body: some View {
@@ -141,9 +188,9 @@ struct RecordView: View {
     @ViewBuilder
     private var disc: some View {
         if spinning {
-            VinylDisc().clockHandRotationEffect(period: .custom(3.6))
+            VinylDisc(label: label).clockHandRotationEffect(period: .custom(3.6))
         } else {
-            VinylDisc()
+            VinylDisc(label: label)
         }
     }
 }
@@ -151,9 +198,14 @@ struct RecordView: View {
 struct SpindleWidgetView: View {
     @Environment(\.widgetFamily) private var family
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isLuminanceReduced) private var isLuminanceReduced
     let entry: SpindleEntry
 
-    private var spinning: Bool { entry.playback.isPlaying && !reduceMotion }
+    /// Spin only while playing on fresh data, and never in Low Power Mode, Always-On,
+    /// or with Reduce Motion (where the effect would tick or distract).
+    private var spinning: Bool {
+        entry.display.isPlaying && !entry.display.isStale && !entry.lowPower && !reduceMotion && !isLuminanceReduced
+    }
 
     var body: some View {
         content
@@ -167,39 +219,79 @@ struct SpindleWidgetView: View {
         switch family {
         case .systemMedium:
             HStack(spacing: 14) {
-                RecordView(spinning: spinning)
+                RecordView(label: entry.label, spinning: spinning)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(entry.playback.title)
+                    Text(entry.display.title)
                         .font(.headline)
                         .foregroundStyle(.white)
                         .lineLimit(2)
-                    if !entry.playback.subtitle.isEmpty {
-                        Text(entry.playback.subtitle)
+                    if !entry.display.subtitle.isEmpty {
+                        Text(entry.display.subtitle)
                             .font(.subheadline)
                             .foregroundStyle(.white.opacity(0.65))
                             .lineLimit(2)
                     }
-                    Spacer(minLength: 0)
-                    statusLine
+                    Spacer(minLength: 4)
+                    HStack(alignment: .center, spacing: 10) {
+                        if entry.display.showsControls {
+                            playPauseButton
+                            skipButton
+                        }
+                        Spacer(minLength: 0)
+                        statusLine
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         default:
-            RecordView(spinning: spinning)
-                .padding(4)
+            RecordView(label: entry.label, spinning: spinning)
+                .overlay(alignment: .bottomTrailing) {
+                    if entry.display.showsControls {
+                        playPauseButton.offset(x: 6, y: 6)
+                    }
+                }
         }
     }
 
+    private var playPauseButton: some View {
+        Button(intent: TogglePlaybackIntent(isPlaying: entry.display.isPlaying)) {
+            controlIcon(entry.display.isPlaying ? "pause.fill" : "play.fill")
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var skipButton: some View {
+        Button(intent: SkipTrackIntent()) {
+            controlIcon("forward.fill")
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func controlIcon(_ name: String) -> some View {
+        Image(systemName: name)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: 32, height: 32)
+            .background(Circle().fill(Color(white: 0.2).opacity(0.85)))
+    }
+
+    @ViewBuilder
     private var statusLine: some View {
-        HStack(spacing: 4) {
+        Group {
             if AppGroup.id == nil {
                 Text("No shared folder")
+            } else if entry.display.isStale, let fetchedAt = entry.fetchedAt {
+                Text("Last seen \(fetchedAt, style: .time)")
+            } else if case .item(_, false, _) = entry.display {
+                Text("Paused")
+            } else if entry.lowPower && entry.display.isPlaying {
+                Text("Low Power")
             } else {
-                Text(entry.playback.isPlaying ? "Playing ·" : "Updated")
-                Text(entry.date, style: .time)
+                EmptyView()
             }
         }
         .font(.caption2.weight(.medium))
         .foregroundStyle(.white.opacity(0.5))
+        .lineLimit(1)
     }
 }

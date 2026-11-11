@@ -68,6 +68,28 @@ public enum SpotifyAPI {
         playerRequest(path: "me/player/queue", accessToken: accessToken, query: [])
     }
 
+    // MARK: Player control (Premium only; used by the widget's buttons)
+
+    public enum PlayerCommand: Sendable {
+        case play, pause, next
+    }
+
+    public static func commandRequest(_ command: PlayerCommand, accessToken: String) -> URLRequest {
+        let method: String
+        let path: String
+        switch command {
+        case .play: (method, path) = ("PUT", "me/player/play")
+        case .pause: (method, path) = ("PUT", "me/player/pause")
+        case .next: (method, path) = ("POST", "me/player/next")
+        }
+        var request = playerRequest(path: path, accessToken: accessToken, query: [])
+        request.httpMethod = method
+        // An explicit empty body makes URLSession send "Content-Length: 0", which
+        // Spotify expects on these body-less PUT/POST calls.
+        request.httpBody = Data()
+        return request
+    }
+
     static func playerRequest(path: String, accessToken: String, query: [URLQueryItem]) -> URLRequest {
         var components = URLComponents(url: apiBase.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
         if !query.isEmpty { components.queryItems = query }
