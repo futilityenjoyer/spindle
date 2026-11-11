@@ -54,3 +54,17 @@ struct PreviousTrackIntent: AppIntent {
         return .result()
     }
 }
+
+/// Re-checks Spotify now. Discarding the cached snapshot makes the reload that follows
+/// the tap fetch fresh data instead of reusing one up to a minute old.
+struct RefreshWidgetIntent: AppIntent {
+    static var title: LocalizedStringResource = "Refresh"
+    static var description = IntentDescription("Checks what Spotify is playing now.")
+
+    init() {}
+
+    func perform() async throws -> some IntentResult {
+        SharedStore.deleteSnapshot()
+        return .result()
+    }
+}

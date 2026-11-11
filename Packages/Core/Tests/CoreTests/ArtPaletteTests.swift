@@ -34,6 +34,14 @@ final class ArtPaletteTests: XCTestCase {
         XCTAssertGreaterThan(palette.label.r, palette.label.b)
     }
 
+    func testToneIsADeepVersionOfTheDominantColour() {
+        let palette = ArtPalette.derive(rgba: image { _, _ in (220, 40, 30) }, width: 24, height: 24)
+        XCTAssertEqual(palette.tone.hsv.v, 0.36, accuracy: 0.001)   // dark enough for white text
+        XCTAssertGreaterThan(palette.tone.r, palette.tone.g)
+        XCTAssertGreaterThanOrEqual(palette.tone.hsv.s, 0.35)
+        XCTAssertEqual(ArtPalette.neutral.tone, RGB(0.2, 0.2, 0.22))
+    }
+
     func testGreyCoverIsNeutral() {
         let palette = ArtPalette.derive(rgba: image { x, _ in x.isMultiple(of: 2) ? (40, 40, 40) : (200, 200, 200) }, width: 24, height: 24)
         XCTAssertTrue(palette.isNeutral)

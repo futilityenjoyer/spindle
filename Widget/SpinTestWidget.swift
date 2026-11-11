@@ -4,7 +4,7 @@ import SwiftUI
 import ClockHandKit
 import Core
 
-// The Spindle widget (design spec §5, Sleeve medium + Inscribed small).
+// The Spindle widgets (Clean glass design, design/directions.html).
 // The kind stays "SpinTest" (its M0 name) so widgets already on the Home Screen keep working.
 // Keep view expressions small and explicitly typed (see the note in VinylRecord.swift).
 
@@ -76,6 +76,16 @@ enum WidgetDisplay {
         case .advertisement: return "Spotify"
         case .problem(let message): return message
         case .waitingForUnlock: return ""
+        }
+    }
+
+    /// The faint line above the title.
+    var eyebrow: String {
+        switch self {
+        case .item(_, let isPlaying, _): return isPlaying ? "Now Playing" : "Paused"
+        case .advertisement: return "Now Playing"
+        case .idle: return "Spotify"
+        case .notConnected, .waitingForUnlock, .problem: return "Spindle"
         }
     }
 }
@@ -194,15 +204,29 @@ struct Covers {
     }
 }
 
+/// "Spindle": small + medium with playback controls, on silver.
 struct SpinTestWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "SpinTest", provider: SpindleProvider()) { (entry: SpindleEntry) in
-            SpindleWidgetView(entry: entry)
+            SpindleWidgetView(entry: entry, style: .controls)
         }
         .configurationDisplayName("Spindle")
-        .description("A spinning record for what's playing on Spotify.")
+        .description("A spinning record with playback controls.")
         .supportedFamilies([.systemSmall, .systemMedium])
-        .contentMarginsDisabled()   // each layout applies the spec's own margins
+        .contentMarginsDisabled()   // each layout applies the design's own margins
+    }
+}
+
+/// "Spindle Minimal": medium, no playback buttons, on a colour from the album art.
+struct SpindleMinimalWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "SpindleMinimal", provider: SpindleProvider()) { (entry: SpindleEntry) in
+            SpindleWidgetView(entry: entry, style: .minimal)
+        }
+        .configurationDisplayName("Spindle Minimal")
+        .description("A spinning record in your album's colours.")
+        .supportedFamilies([.systemMedium])
+        .contentMarginsDisabled()
     }
 }
 
@@ -221,12 +245,17 @@ struct SpinEffect: ViewModifier {
     }
 }
 
+enum SpindleStyle {
+    case controls
+    case minimal
+}
+
 struct SpindleWidgetView: View {
     @Environment(\.widgetFamily) private var family
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.isLuminanceReduced) private var isLuminanceReduced
     let entry: SpindleEntry
+    let style: SpindleStyle
 
     /// Spin only while playing on fresh data, and never in Low Power Mode, Always-On,
     /// or with Reduce Motion.
@@ -234,183 +263,200 @@ struct SpindleWidgetView: View {
         entry.display.isPlaying && !entry.display.isStale && !entry.lowPower && !reduceMotion && !isLuminanceReduced
     }
 
+    /// The tonearm rests on the record while playing; it lifts when paused or stale.
+    private var armDown: Bool {
+        entry.display.isPlaying && !entry.display.isStale
+    }
+
+    private var base: CleanBase {
+        style == .minimal ? CleanBase.tinted(entry.palette.tone) : CleanBase.silver
+    }
+
     var body: some View {
-        let ink = WidgetInk(palette: entry.palette, scheme: colorScheme)
-        Group {
-            if family == .systemMedium {
-                MediumSleeveLayout(entry: entry, ink: ink, spinning: spinning)
-            } else {
-                SmallRecordLayout(entry: entry, ink: ink, spinning: spinning)
+        content
+            .containerBackground(for: .widget) {
+                CleanBackground(art: entry.art, base: base, isSmall: family == .systemSmall)
             }
-        }
-        .containerBackground(for: .widget) {
-            ink.surface
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if family == .systemSmall {
+            SmallLayout(entry: entry, spinning: spinning, armDown: armDown)
+        } else if style == .minimal {
+            MinimalMediumLayout(entry: entry, spinning: spinning, armDown: armDown)
+        } else {
+            ControlsMediumLayout(entry: entry, spinning: spinning, armDown: armDown)
         }
     }
 }
 
-// MARK: - Small: Inscribed record (spec §5.2)
+// MARK: - Small (silver, play/pause in the corner)
 
-struct SmallRecordLayout: View {
+struct SmallLayout: View {
     let entry: SpindleEntry
-    let ink: WidgetInk
     let spinning: Bool
+    let armDown: Bool
 
     var body: some View {
-        ZStack {
-            VinylRecord(style: .inscribed, art: entry.art, palette: entry.palette,
-                        labelFraction: 0.6, rotation: SpinEffect(spinning: spinning))
-                .padding(19)   // disc ≈ 76% of the widget
+        ZStack(alignment: .bottomLeading) {
+            TurntableView(art: entry.art, armDown: armDown, onLightBase: true,
+                          layout: .small, rotation: SpinEffect(spinning: spinning))
                 .opacity(entry.display.isDimmed ? 0.38 : 1)
-
-            VStack {
-                Spacer(minLength: 0)
-                HStack(alignment: .bottom) {
-                    if !entry.display.isPlaying || entry.display.isStale {
-                        StatusLabel(entry: entry, ink: ink)
-                    }
-                    Spacer(minLength: 0)
-                    if entry.display.showsControls {
-                        PlayPauseButton(isPlaying: entry.display.isPlaying, ink: ink)
-                    }
-                }
+            if entry.display.showsControls {
+                PlainControl(symbol: entry.display.isPlaying ? "pause.fill" : "play.fill",
+                             intent: TogglePlaybackIntent(isPlaying: entry.display.isPlaying),
+                             ink: CleanInk.onSilver)
+                    .padding(4)
             }
-            .padding(11)
         }
     }
 }
 
-// MARK: - Medium: Sleeve (spec §5.4)
+// MARK: - Medium with controls (silver)
 
-struct MediumSleeveLayout: View {
+struct ControlsMediumLayout: View {
     let entry: SpindleEntry
-    let ink: WidgetInk
     let spinning: Bool
+    let armDown: Bool
+    private var ink: CleanInk { CleanInk.onSilver }
 
     var body: some View {
         GeometryReader { (geo: GeometryProxy) in
-            let side: CGFloat = geo.size.height
-            let peek: CGFloat = side * 0.38
-            HStack(alignment: .center, spacing: 14) {
-                ZStack(alignment: .leading) {
-                    VinylRecord(style: .plain, art: nil, palette: entry.palette,
-                                labelFraction: 0.5, rotation: SpinEffect(spinning: spinning))
-                        .frame(width: side, height: side)
-                        .offset(x: peek)
-                        .opacity(entry.display.isDimmed ? 0.38 : 1)
-                    CoverArt(art: entry.art, cornerRadius: 4)
-                        .frame(width: side, height: side)
-                        .shadow(color: Color.black.opacity(0.35), radius: 3.5, x: 2, y: 1)
-                }
-                .frame(width: side + peek, height: side, alignment: .leading)
-
-                TextColumn(entry: entry, ink: ink)
+            let width: CGFloat = geo.size.width
+            let height: CGFloat = geo.size.height
+            let box: CGFloat = height * 0.962
+            ZStack(alignment: .topLeading) {
+                TurntableView(art: entry.art, armDown: armDown, onLightBase: true,
+                              layout: .medium, rotation: SpinEffect(spinning: spinning))
+                    .frame(width: box, height: box)
+                    .opacity(entry.display.isDimmed ? 0.38 : 1)
+                    .position(x: width - 2 - box / 2, y: height / 2)
+                textColumn
+                    .padding(EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 0))
+                    .frame(width: width - box - 4, height: height, alignment: .topLeading)
             }
         }
-        .padding(16)
     }
-}
 
-struct TextColumn: View {
-    let entry: SpindleEntry
-    let ink: WidgetInk
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+    private var textColumn: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            EyebrowText(entry: entry)
+                .font(.system(size: 13))
+                .foregroundStyle(ink.secondary)
+                .opacity(0.72)
+                .padding(.bottom, 3)
             Text(entry.display.title)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: 17, weight: .bold))
                 .foregroundStyle(ink.primary)
                 .lineLimit(2)
             if !entry.display.subtitle.isEmpty {
                 Text(entry.display.subtitle)
-                    .font(.system(size: 13))
+                    .font(.system(size: 14))
                     .foregroundStyle(ink.secondary)
                     .lineLimit(1)
             }
             Spacer(minLength: 4)
-            StatusLabel(entry: entry, ink: ink)
             if entry.display.showsControls {
-                HStack(spacing: 8) {
-                    ControlButton(symbol: "backward.fill", intent: PreviousTrackIntent(), ink: ink)
-                    PlayPauseButton(isPlaying: entry.display.isPlaying, ink: ink)
-                    ControlButton(symbol: "forward.fill", intent: SkipTrackIntent(), ink: ink)
+                HStack(spacing: 10) {
+                    PlainControl(symbol: "backward.end.fill", intent: PreviousTrackIntent(), ink: ink)
+                    PlainControl(symbol: entry.display.isPlaying ? "pause.fill" : "play.fill",
+                                 intent: TogglePlaybackIntent(isPlaying: entry.display.isPlaying), ink: ink)
+                    PlainControl(symbol: "forward.end.fill", intent: SkipTrackIntent(), ink: ink)
                 }
-                .padding(.top, 4)
+                .padding(.leading, -8)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+}
+
+// MARK: - Medium minimal (album colour, no playback buttons)
+
+struct MinimalMediumLayout: View {
+    let entry: SpindleEntry
+    let spinning: Bool
+    let armDown: Bool
+    private var ink: CleanInk { CleanInk.onTint }
+
+    var body: some View {
+        GeometryReader { (geo: GeometryProxy) in
+            let width: CGFloat = geo.size.width
+            let height: CGFloat = geo.size.height
+            let box: CGFloat = height * 0.962
+            ZStack(alignment: .topLeading) {
+                TurntableView(art: entry.art, armDown: armDown, onLightBase: false,
+                              layout: .medium, rotation: SpinEffect(spinning: spinning))
+                    .frame(width: box, height: box)
+                    .opacity(entry.display.isDimmed ? 0.38 : 1)
+                    .position(x: width - 2 - box / 2, y: height / 2)
+                textColumn
+                    .padding(EdgeInsets(top: 20, leading: 21, bottom: 20, trailing: 0))
+                    .frame(width: width - box - 4, height: height, alignment: .topLeading)
+                refreshButton
+                    .position(x: width - 8 - 11, y: height - 8 - 11)
+            }
+        }
+    }
+
+    private var textColumn: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            EyebrowText(entry: entry)
+                .font(.system(size: 12.5))
+                .foregroundStyle(ink.secondary)
+            Spacer(minLength: 4)
+            if !entry.display.subtitle.isEmpty {
+                Text(entry.display.subtitle)
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(ink.secondary)
+                    .lineLimit(1)
+            }
+            Text(entry.display.title)
+                .font(.system(size: 16.5, weight: .medium))
+                .foregroundStyle(ink.primary)
+                .lineLimit(2)
+                .padding(.top, 1)
+        }
+    }
+
+    /// Small, faint: re-checks Spotify now (the tap reloads the widget without using its daily budget).
+    private var refreshButton: some View {
+        Button(intent: RefreshWidgetIntent()) {
+            Image(systemName: "arrow.clockwise")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(ink.primary.opacity(0.55))
+                .frame(width: 22, height: 22)
+        }
+        .buttonStyle(.plain)
     }
 }
 
 // MARK: - Shared pieces
 
-struct StatusLabel: View {
+/// "Now Playing", "Paused", or "Last seen 4:32" when the data is stale.
+struct EyebrowText: View {
     let entry: SpindleEntry
-    let ink: WidgetInk
 
     var body: some View {
-        HStack(spacing: 4) {
-            icon
-            text
-        }
-        .font(.system(size: 11, weight: .semibold, design: .rounded))
-        .foregroundStyle(ink.secondary)
-        .lineLimit(1)
-    }
-
-    @ViewBuilder
-    private var icon: some View {
-        if AppGroup.id == nil || entry.display.isStale {
-            Circle().fill(Color.orange).frame(width: 6, height: 6)
-        } else if entry.display.isPlaying {
-            Image(systemName: "waveform").font(.system(size: 9, weight: .bold))
-        } else if entry.display.isPaused {
-            Image(systemName: "pause.fill").font(.system(size: 9, weight: .bold))
-        } else {
-            Circle().fill(ink.secondary).frame(width: 5, height: 5)
-        }
-    }
-
-    @ViewBuilder
-    private var text: some View {
-        if AppGroup.id == nil {
-            Text("No shared folder")
-        } else if entry.display.isStale, let fetchedAt = entry.fetchedAt {
+        if entry.display.isStale, let fetchedAt = entry.fetchedAt {
             Text("Last seen \(fetchedAt, style: .time)")
-        } else if entry.display.isPlaying {
-            Text(entry.lowPower ? "Playing · Low Power" : "Playing")
-        } else if entry.display.isPaused {
-            Text("Paused")
-        } else if entry.display.isDimmed {
-            Text("Signed out")
         } else {
-            Text("Idle")
+            Text(entry.display.eyebrow)
         }
     }
 }
 
-struct PlayPauseButton: View {
-    let isPlaying: Bool
-    let ink: WidgetInk
-
-    var body: some View {
-        ControlButton(symbol: isPlaying ? "pause.fill" : "play.fill",
-                      intent: TogglePlaybackIntent(isPlaying: isPlaying), ink: ink)
-    }
-}
-
-struct ControlButton<Intent: AppIntent>: View {
+/// A plain glyph button (no circle behind it).
+struct PlainControl<Intent: AppIntent>: View {
     let symbol: String
     let intent: Intent
-    let ink: WidgetInk
+    let ink: CleanInk
 
     var body: some View {
         Button(intent: intent) {
             Image(systemName: symbol)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(ink.primary)
-                .frame(width: 30, height: 30)
-                .background(Circle().fill(ink.control))
+                .frame(width: 34, height: 34)
         }
         .buttonStyle(.plain)
     }

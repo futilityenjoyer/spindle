@@ -66,13 +66,18 @@ public struct ArtPalette: Equatable, Sendable {
     public var edge: RGB
     /// True when the art is (nearly) greyscale or missing, so neutral colours are used.
     public var isNeutral: Bool
+    /// A deep colour from the art, used as the base of the "Spindle Minimal" widget
+    /// (dark enough for white text).
+    public var tone: RGB
 
-    public init(surfaceDark: RGB, surfaceLight: RGB, label: RGB, edge: RGB, isNeutral: Bool) {
+    public init(surfaceDark: RGB, surfaceLight: RGB, label: RGB, edge: RGB, isNeutral: Bool,
+                tone: RGB = RGB(0.2, 0.2, 0.22)) {
         self.surfaceDark = surfaceDark
         self.surfaceLight = surfaceLight
         self.label = label
         self.edge = edge
         self.isNeutral = isNeutral
+        self.tone = tone
     }
 
     /// Graphite fallback for missing or greyscale art.
@@ -143,6 +148,7 @@ public struct ArtPalette: Equatable, Sendable {
             surfaceLight: RGB(hue: hue, saturation: min(saturation * 0.22, 0.12), brightness: 0.95),
             label: RGB(hue: hue, saturation: min(max(saturation * 0.85, 0.35), 0.75), brightness: 0.62),
             edge: edge,
-            isNeutral: false)
+            isNeutral: false,
+            tone: RGB(hue: hue, saturation: min(max(saturation * 0.8, 0.35), 0.7), brightness: 0.36))
     }
 }

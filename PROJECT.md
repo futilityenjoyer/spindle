@@ -9,7 +9,7 @@ Last updated: 2026-11-12, M0 device testing.
 |---|---|
 | 1 Feasibility research | ✅ Done: [docs/FEASIBILITY.md](docs/FEASIBILITY.md) |
 | 2 Architecture & planning | ✅ Done; owner decisions recorded below |
-| 3 Core development | ✅ M0, ✅ M1, ✅ M2+M4 (2026-11-12). 🔨 **Design build written, not yet compiled:** prototype look (art-tinted background, procedural grooves/band gaps/bevel, bow-tie sheen, rotating etchings + label marks), small = Inscribed (cover upright, uncropped), medium = Sleeve (plain colour label), ⏮⏯⏭ on medium, Refresh Spindle Shortcuts action, Responsive (5 min) setting. **Next: M5 battery + M6 QA.** |
+| 3 Core development | ✅ M0, M1, M2+M4. 🔨 **Clean glass build written, not yet compiled or device-tested:** "Spindle" (small + medium with controls, silver) and new "Spindle Minimal" (medium, album-colour base, corner refresh); matte record with full-bleed 66% label, silver tonearm in a recessed well, blurred-cover backgrounds. **Next: M5 battery + M6 QA.** |
 | 4 Optimisation | Not started |
 | 5 Testing | Not started |
 | 6 Deployment docs | Install guide: [docs/INSTALL.md](docs/INSTALL.md) (iloader) |
@@ -40,6 +40,7 @@ Full detail: [FEASIBILITY.md §4](docs/FEASIBILITY.md#4-recommended-architecture
 | 2026-11-11 | **No MetricKit / battery-metrics screen**; battery is judged via Settings › Battery | Owner preference; keeps Diagnostics to a simple reload/request log |
 | 2026-11-11 | **Widget buttons: play/pause + skip** (each tap force-refreshes the widget) | Fixes staleness for anything done from the widget; changes made elsewhere are still caught at the ~10 min reload |
 | 2026-11-12 | **CI pinned to Xcode 26.6**; Xcode 27 preview build dropped | Device test: the 26.6 build spins on iOS 27.2 |
+| 2026-11-12 | **Final widget design: Clean glass** (design/directions.html, artifact v16). Two widgets: "Spindle" (silver, controls) and "Spindle Minimal" (album colour, no playback buttons, small corner refresh) | Chosen by the owner after iterating on Turntable / Art-driven / Clean glass mockups; matte record, full-bleed 66% label, silver tonearm |
 | 2026-11-12 | **Back to full-bleed label** (cover cropped to a circle, spinning with the record). Supersedes the Inscribed/plain-label compliance choices | Owner will not publish the app, so Spotify's artwork rules no longer constrain a personal build. Widget direction (Turntable / Art-driven / Clean glass) still being chosen in design/directions.html |
 | 2026-11-12 | **Small widget = Inscribed** (cover upright, uncropped, inside the label; record spins beneath); medium = Sleeve; **⏮ previous** button added; **Refresh Spindle** Shortcuts action + **Responsive updates** setting | Owner request: both sizes compliant with Spotify's artwork rules; free freshness improvements chosen over the paid push route |
 | 2026-11-12 | **Design reset to the prototype: Sleeve layout for small and medium, plain colour label on the spinning record, art-tinted background, prototype disc detail and typography.** Supersedes "Full-bleed label only" and the 60% art label | Owner noticed the build didn't match the design preview. Sleeve shows the full, still, uncropped cover, which complies with Spotify's artwork rules. Spin and play/pause + skip buttons kept. |

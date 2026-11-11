@@ -27,13 +27,13 @@ struct DiagnosticsView: View {
         NavigationStack {
             List {
                 Section {
-                    // Still preview of the small widget's record with the current cover.
-                    VinylRecord(style: .inscribed, art: labelImage, palette: palette,
-                                labelFraction: 0.6, rotation: EmptyModifier.identity)
+                    // Still preview of the widget's record and tonearm with the current cover.
+                    TurntableView(art: labelImage, armDown: true, onLightBase: true,
+                                  layout: .small, rotation: EmptyModifier.identity)
                         .frame(height: 220)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
-                        .listRowBackground(Color(rgb: palette.surfaceDark))
+                        .listRowBackground(Color(hex: 0xD9DBDF))
                 }
 
                 spotifySection

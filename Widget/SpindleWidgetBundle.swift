@@ -5,5 +5,6 @@ import SwiftUI
 struct SpindleWidgetBundle: WidgetBundle {
     var body: some Widget {
         SpinTestWidget()
+        SpindleMinimalWidget()
     }
 }
