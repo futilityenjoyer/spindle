@@ -1,0 +1,590 @@
+<title>Spindle Directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Inter+Tight:wght@600;700&display=swap">
+<style>
+/* Layout: one control bar, then three columns (Now / Turntable / Art-driven), each a
+   Home Screen wallpaper holding the small and medium widget at true iPhone point size. */
+:root {
+  --bg: #f2f1ef;
+  --panel: #ffffff;
+  --fg: #17171a;
+  --muted: #5d5d66;
+  --line: rgba(23, 23, 26, 0.12);
+  --accent: #b5652a;
+  --chip: rgba(23, 23, 26, 0.06);
+  --chip-on: #17171a;
+  --chip-on-fg: #ffffff;
+  --font-display: "Inter Tight", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-ios: -apple-system, "SF Pro Text", "Inter", system-ui, "Segoe UI", sans-serif;
+  --font-ios-round: ui-rounded, "SF Pro Rounded", -apple-system, "Inter", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e0f12; --panel: #17181c; --fg: #f1f1f3; --muted: #a2a3ab;
+    --line: rgba(255, 255, 255, 0.10); --accent: #e3a35f; --chip: rgba(255, 255, 255, 0.07);
+    --chip-on: #f1f1f3; --chip-on-fg: #0e0f12; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e0f12; --panel: #17181c; --fg: #f1f1f3; --muted: #a2a3ab;
+  --line: rgba(255, 255, 255, 0.10); --accent: #e3a35f; --chip: rgba(255, 255, 255, 0.07);
+  --chip-on: #f1f1f3; --chip-on-fg: #0e0f12; color-scheme: dark;
+}
+
+body { background: var(--bg); color: var(--fg); font: 15px/1.5 var(--font-body); }
+.page {
+  max-width: 1240px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 48px;
+  display: grid; gap: 20px;
+}
+header h1 { font: 700 clamp(26px, 4vw, 34px)/1.1 var(--font-display); letter-spacing: -0.02em; margin: 0 0 6px; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); max-width: 64ch; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.group { display: flex; gap: 4px; align-items: center; background: var(--chip); padding: 4px; border-radius: 999px; }
+.group span { font-size: 12px; color: var(--muted); padding: 0 8px 0 6px; letter-spacing: 0.04em; text-transform: uppercase; }
+.controls button {
+  font: 500 13px/1 var(--font-body); color: var(--fg); background: transparent; border: 0;
+  padding: 8px 12px; border-radius: 999px; cursor: pointer;
+}
+.controls button[aria-pressed="true"] { background: var(--chip-on); color: var(--chip-on-fg); }
+.controls button:focus-visible, .wbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 384px), 1fr)); gap: 16px; }
+.col { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 12px; display: grid; gap: 14px; min-width: 0; }
+.col h2 { font: 600 17px/1.2 var(--font-display); margin: 0; display: flex; gap: 8px; align-items: baseline; }
+.col h2 small { font: 500 12px var(--font-body); color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+.col ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13.5px; display: grid; gap: 4px; }
+.col li strong { color: var(--fg); font-weight: 600; }
+
+/* Home Screen wallpaper the widgets sit on */
+.wall { border-radius: 14px; padding: 18px 8px; display: grid; gap: 16px; justify-items: center; overflow-x: auto; }
+.wall.dark { background: radial-gradient(120% 90% at 20% 0%, #2a3350 0%, #121521 55%, #0a0b10 100%); }
+.wall.light { background: radial-gradient(120% 90% at 20% 0%, #dfe6f3 0%, #c9d1e2 55%, #b9c0cf 100%); }
+.scaler { transform-origin: top center; }
+
+/* Widgets: 158×158 small and 338×158 medium (iPhone 393-pt class) */
+.w {
+  position: relative; overflow: hidden; border-radius: 22px; color: var(--w-fg);
+  font-family: var(--font-ios); -webkit-font-smoothing: antialiased;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+.w-small { width: 158px; height: 158px; }
+.w-medium { width: 338px; height: 158px; }
+.w canvas { position: absolute; display: block; }
+.w .bg, .w .grain, .w .glow { position: absolute; inset: 0; pointer-events: none; }
+.w .grain { opacity: 0.10; mix-blend-mode: overlay; background-size: 128px 128px; }
+.w .glow { filter: blur(22px); opacity: 0.9; }
+.sleeve { position: absolute; border-radius: 4px; box-shadow: 2px 3px 9px rgba(0, 0, 0, 0.45); }
+.textcol { position: absolute; top: 16px; bottom: 16px; right: 16px; display: flex; flex-direction: column; min-width: 0; }
+.title { font-weight: 600; font-size: 15px; line-height: 18px; letter-spacing: -0.01em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.artist { font-size: 13px; line-height: 17px; color: var(--w-fg2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.status { font: 600 11px/1 var(--font-ios-round); color: var(--w-fg2); display: flex; align-items: center; gap: 4px; margin-top: auto; }
+.bars { display: inline-flex; gap: 1.5px; align-items: flex-end; height: 9px; }
+.bars i { width: 2px; background: currentColor; border-radius: 1px; height: 9px; }
+.ctrls { display: flex; gap: 8px; margin-top: 8px; }
+.wbtn {
+  width: 30px; height: 30px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+  display: grid; place-items: center; background: var(--w-ctl); color: var(--w-fg);
+}
+.wbtn.glass { background: rgba(255, 255, 255, 0.16); backdrop-filter: blur(12px) saturate(1.4); -webkit-backdrop-filter: blur(12px) saturate(1.4); box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.35); }
+.wall.light .wbtn.glass { background: rgba(255, 255, 255, 0.45); }
+.wbtn svg { width: 12px; height: 12px; fill: currentColor; }
+.corner { position: absolute; }
+.cap { font-size: 12px; color: var(--muted); text-align: center; margin-top: -8px; }
+.caps { display: grid; gap: 16px; justify-items: center; }
+
+footer { color: var(--muted); font-size: 13px; }
+@media (prefers-reduced-motion: reduce) { .w .glow { transition: none; } }
+</style>
+
+<div class="page">
+  <header>
+    <h1>Spindle Directions</h1>
+    <p>Two new looks for the widget next to what you have now, drawn at real iPhone size with a glossier record. The spin, the uncropped upright cover and the &#9198; &#9199; &#9197; buttons stay in every option. Open this page on your iPhone to judge the real size.</p>
+  </header>
+
+  <div class="controls" role="toolbar" aria-label="Preview controls">
+    <div class="group"><span>Music</span>
+      <button id="btn-play" aria-pressed="true">Playing</button>
+      <button id="btn-next">Next track</button>
+    </div>
+    <div class="group"><span>Home Screen</span>
+      <button id="btn-dark" aria-pressed="true">Dark</button>
+      <button id="btn-light" aria-pressed="false">Light</button>
+    </div>
+    <div class="group"><span>Zoom</span>
+      <button id="btn-z1" aria-pressed="true">Real size</button>
+      <button id="btn-z2" aria-pressed="false">2&times;</button>
+    </div>
+  </div>
+
+  <div class="cols">
+    <section class="col" data-dir="now">
+      <h2>Now <small>current build</small></h2>
+      <div class="wall dark"><div class="scaler caps"></div></div>
+      <ul>
+        <li>Single muted colour behind the widget.</li>
+        <li>Thin grooves and a soft highlight, so the record reads as a dark disc.</li>
+        <li>No shadow, so the record sits flat on the background.</li>
+      </ul>
+    </section>
+
+    <section class="col" data-dir="turntable">
+      <h2>A &middot; Turntable <small>physical</small></h2>
+      <div class="wall dark"><div class="scaler caps"></div></div>
+      <ul>
+        <li><strong>Platter and tonearm.</strong> The record sits on a metal platter whose strobe dots turn with it. The tonearm rests on the record while playing and lifts off when paused.</li>
+        <li><strong>Plinth.</strong> Brushed-metal base, lightly warmed by the cover's colour.</li>
+        <li><strong>In a real widget:</strong> the tonearm can't glide. It jumps between "on" and "off" when the widget refreshes. Everything else matches this preview.</li>
+      </ul>
+    </section>
+
+    <section class="col" data-dir="art">
+      <h2>B &middot; Art-driven colour <small>vivid</small></h2>
+      <div class="wall dark"><div class="scaler caps"></div></div>
+      <ul>
+        <li><strong>Colour from the cover.</strong> Three colours picked from the album art blend behind the record, with a soft glow and film grain.</li>
+        <li><strong>Lifted record.</strong> Stronger studio highlight and a shadow, so it floats above the colour.</li>
+        <li><strong>In a real widget:</strong> built from a mesh gradient and blurred shapes, all static and cheap. The cover itself is never blurred or cropped, which keeps Spotify's artwork rules.</li>
+      </ul>
+    </section>
+  </div>
+
+  <footer>Covers, titles and artists are invented placeholders. Spin speed is 16&#8532; RPM (3.6 seconds per turn), as on your widget.</footer>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const TAU = Math.PI * 2;
+  const DPR = Math.min(window.devicePixelRatio || 1, 3);
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const state = { playing: true, light: false, zoom: 1, track: 0, angle: 0, arm: 1 };
+
+  // ---------- Placeholder covers (drawn, not copied from any real album) ----------
+  const TRACKS = [
+    { title: "Low Sun Over Harbour", artist: "Marlow Reyes", draw: drawSunset },
+    { title: "Glass Gardens", artist: "Ivo Lane", draw: drawGardens },
+    { title: "Night Ferry", artist: "The Quiet Hours", draw: drawFerry },
+  ];
+
+  function drawSunset(g, s) {
+    const sky = g.createLinearGradient(0, 0, 0, s);
+    sky.addColorStop(0, "#2b1a4a"); sky.addColorStop(0.45, "#c2457a"); sky.addColorStop(0.7, "#f3a65a");
+    g.fillStyle = sky; g.fillRect(0, 0, s, s);
+    const sun = g.createRadialGradient(s * 0.5, s * 0.55, 0, s * 0.5, s * 0.55, s * 0.22);
+    sun.addColorStop(0, "#ffe2a0"); sun.addColorStop(1, "#ff8a4c");
+    g.fillStyle = sun; g.beginPath(); g.arc(s * 0.5, s * 0.55, s * 0.2, 0, TAU); g.fill();
+    const sea = g.createLinearGradient(0, s * 0.66, 0, s);
+    sea.addColorStop(0, "#4a2766"); sea.addColorStop(1, "#160e2a");
+    g.fillStyle = sea; g.fillRect(0, s * 0.66, s, s * 0.34);
+    g.fillStyle = "rgba(255, 190, 120, 0.55)";
+    for (let i = 0; i < 6; i++) { const w = s * (0.3 - i * 0.04); g.fillRect(s * 0.5 - w / 2, s * (0.69 + i * 0.045), w, s * 0.012); }
+  }
+  function drawGardens(g, s) {
+    const bg = g.createLinearGradient(0, 0, s, s);
+    bg.addColorStop(0, "#0d3f43"); bg.addColorStop(1, "#1f7a5e");
+    g.fillStyle = bg; g.fillRect(0, 0, s, s);
+    const blobs = [["rgba(185,235,120,0.6)", 0.36, 0.42, 0.26], ["rgba(250,214,92,0.55)", 0.64, 0.55, 0.19], ["rgba(96,206,214,0.5)", 0.5, 0.72, 0.23]];
+    for (const [c, x, y, r] of blobs) { g.fillStyle = c; g.beginPath(); g.arc(s * x, s * y, s * r, 0, TAU); g.fill(); }
+    g.strokeStyle = "rgba(255,255,255,0.25)"; g.lineWidth = s * 0.004;
+    for (let i = 1; i < 6; i++) { g.beginPath(); g.moveTo(s * i / 6, s * 0.08); g.lineTo(s * i / 6, s * 0.18); g.stroke(); }
+  }
+  function drawFerry(g, s) {
+    const bg = g.createLinearGradient(0, 0, 0, s);
+    bg.addColorStop(0, "#0a1230"); bg.addColorStop(1, "#1b2c70");
+    g.fillStyle = bg; g.fillRect(0, 0, s, s);
+    g.save(); g.translate(s / 2, s / 2); g.rotate(-0.5);
+    g.fillStyle = "rgba(232, 80, 138, 0.85)"; g.fillRect(-s, -s * 0.06, s * 2, s * 0.12);
+    g.fillStyle = "rgba(255, 155, 192, 0.7)"; g.fillRect(-s, s * 0.12, s * 2, s * 0.05);
+    g.restore();
+    g.fillStyle = "#f6f2e8"; g.beginPath(); g.arc(s * 0.72, s * 0.22, s * 0.07, 0, TAU); g.fill();
+    g.fillStyle = "#070b1d"; g.beginPath();
+    g.moveTo(s * 0.18, s * 0.82); g.lineTo(s * 0.82, s * 0.82); g.lineTo(s * 0.74, s * 0.9); g.lineTo(s * 0.26, s * 0.9); g.closePath(); g.fill();
+  }
+
+  const covers = TRACKS.map((t) => {
+    const c = document.createElement("canvas"); c.width = c.height = 600;
+    t.draw(c.getContext("2d"), 600);
+    return c;
+  });
+  const coverURLs = covers.map((c) => c.toDataURL("image/jpeg", 0.9));
+
+  // ---------- Palette from art (same idea as the app's ArtPalette) ----------
+  function hsv(r, g, b) {
+    const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+    let h = 0;
+    if (d > 0) {
+      if (max === r) { h = (g - b) / d; if (h < 0) h += 6; }
+      else if (max === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h /= 6;
+    }
+    return [h, max === 0 ? 0 : d / max, max];
+  }
+  function rgbFromHsv(h, s, v) {
+    const x = (h - Math.floor(h)) * 6, i = Math.floor(x) % 6, f = x - Math.floor(x);
+    const p = v * (1 - s), q = v * (1 - s * f), t = v * (1 - s * (1 - f));
+    return [[v, t, p], [q, v, p], [p, v, t], [p, q, v], [t, p, v], [v, p, q]][i];
+  }
+  const css = (c, a = 1) => `rgba(${Math.round(c[0] * 255)}, ${Math.round(c[1] * 255)}, ${Math.round(c[2] * 255)}, ${a})`;
+
+  function paletteFor(cover) {
+    const c = document.createElement("canvas"); c.width = c.height = 24;
+    const g = c.getContext("2d"); g.drawImage(cover, 0, 0, 24, 24);
+    const d = g.getImageData(0, 0, 24, 24).data;
+    const bins = Array.from({ length: 24 }, () => ({ w: 0, s: 0, r: 0, g: 0, b: 0 }));
+    let er = 0, eg = 0, eb = 0, en = 0;
+    for (let y = 0; y < 24; y++) for (let x = 0; x < 24; x++) {
+      const o = (y * 24 + x) * 4, r = d[o] / 255, gg = d[o + 1] / 255, b = d[o + 2] / 255;
+      if (x === 0 || y === 0 || x === 23 || y === 23) { er += r; eg += gg; eb += b; en++; }
+      const [h, s, v] = hsv(r, gg, b);
+      const w = Math.pow(s, 1.4) * (1 - 0.8 * Math.abs(v - 0.5) / 0.5) + 0.002;
+      const bin = bins[Math.min(Math.floor(h * 24), 23)];
+      bin.w += w; bin.s += s * w; bin.r += r * w; bin.g += gg * w; bin.b += b * w;
+    }
+    const order = bins.map((b, i) => [b, i]).sort((a, b) => b[0].w - a[0].w);
+    const picks = [];
+    for (const [b, i] of order) {
+      if (picks.length === 3) break;
+      if (b.w <= 0) continue;
+      if (picks.some((p) => Math.min(Math.abs(p.i - i), 24 - Math.abs(p.i - i)) < 2)) continue;
+      picks.push({ i, rgb: [b.r / b.w, b.g / b.w, b.b / b.w], s: b.s / b.w });
+    }
+    while (picks.length < 3) picks.push(picks[picks.length - 1] || { rgb: [0.3, 0.3, 0.35], s: 0.1 });
+    const [h, s] = hsv(...picks[0].rgb);
+    const mesh = picks.map((p) => { const [ph, ps] = hsv(...p.rgb); return { dark: rgbFromHsv(ph, Math.min(ps, 0.85) * 0.9, 0.46), light: rgbFromHsv(ph, ps * 0.38, 0.93) }; });
+    return {
+      surfaceDark: rgbFromHsv(h, Math.min(s * 0.55, 0.45), 0.2),
+      surfaceLight: rgbFromHsv(h, Math.min(s * 0.22, 0.12), 0.95),
+      label: rgbFromHsv(h, Math.min(Math.max(s * 0.85, 0.35), 0.75), 0.62),
+      edge: [er / en, eg / en, eb / en],
+      accent: picks[0].rgb,
+      mesh,
+    };
+  }
+  const palettes = covers.map(paletteFor);
+
+  // ---------- Record textures ----------
+  function canvasOf(px) { const c = document.createElement("canvas"); c.width = c.height = Math.max(2, Math.round(px)); return c; }
+
+  // Static: body, grooves, band gaps, run-out, bevel. `gloss` deepens contrast.
+  function buildDisc(px, labelFrac, gloss) {
+    const c = canvasOf(px), g = c.getContext("2d"), R = c.width / 2;
+    g.translate(R, R);
+    const body = g.createRadialGradient(0, 0, R * labelFrac, 0, 0, R);
+    body.addColorStop(0, "#09090b"); body.addColorStop(1, gloss ? "#141418" : "#111114");
+    g.fillStyle = body; g.beginPath(); g.arc(0, 0, R, 0, TAU); g.fill();
+    const ps = R * (labelFrac + 0.065), pe = R * 0.948;
+    const pitch = Math.max(R / 70, 1.1 * DPR * 0.5);
+    const gaps = [1, 2, 3, 4, 5].map((k) => ps + (k * (pe - ps)) / 6);
+    let i = 0;
+    for (let r = ps; r < pe; r += pitch, i++) {
+      if (gaps.some((gr) => Math.abs(r - gr) < pitch * 0.9)) continue;
+      const loud = 0.5 + 0.5 * Math.sin(i * 0.71 + 3 * Math.sin(i * 0.13));
+      g.strokeStyle = `rgba(255,255,255,${(gloss ? 0.03 : 0.026) + (gloss ? 0.045 : 0.03) * loud})`;
+      g.lineWidth = pitch * 0.42; g.beginPath(); g.arc(0, 0, r, 0, TAU); g.stroke();
+      if (gloss) { g.strokeStyle = "rgba(0,0,0,0.35)"; g.lineWidth = pitch * 0.3; g.beginPath(); g.arc(0, 0, r + pitch * 0.5, 0, TAU); g.stroke(); }
+    }
+    for (const gr of gaps) { g.strokeStyle = `rgba(255,255,255,${gloss ? 0.1 : 0.075})`; g.lineWidth = pitch * 0.5; g.beginPath(); g.arc(0, 0, gr, 0, TAU); g.stroke(); }
+    const ring = (r, col, w) => { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.arc(0, 0, r, 0, TAU); g.stroke(); };
+    ring(R * (labelFrac + 0.047), "rgba(255,255,255,0.09)", pitch * 0.45);
+    ring(R * (labelFrac + 0.008), "rgba(0,0,0,0.55)", R * 0.014);
+    ring(R * 0.96, "rgba(255,255,255,0.06)", pitch * 0.45);
+    ring(R * 0.991, `rgba(255,255,255,${gloss ? 0.16 : 0.1})`, R * 0.018);
+    ring(R - 0.5, "rgba(255,255,255,0.07)", 1);
+    return c;
+  }
+
+  // Static studio light: bow-tie highlight on the grooves, never on the label.
+  function buildSheen(px, labelFrac, strength, tint) {
+    const c = canvasOf(px), g = c.getContext("2d"), R = c.width / 2;
+    g.translate(R, R);
+    const lc = tint || [0.93, 0.95, 1];
+    const cg = g.createConicGradient(-2.25, 0, 0);
+    const a = strength, f = strength * 0.18;
+    [[0, a], [0.025, a * 0.35], [0.07, 0], [0.25, f], [0.31, 0], [0.43, 0], [0.475, a * 0.35], [0.5, a], [0.525, a * 0.35], [0.57, 0], [0.75, f], [0.81, 0], [0.93, 0], [0.975, a * 0.35], [1, a]]
+      .forEach(([pos, al]) => cg.addColorStop(pos, css(lc, al)));
+    g.fillStyle = cg;
+    g.beginPath(); g.arc(0, 0, R * 0.995, 0, TAU); g.arc(0, 0, R * (labelFrac + 0.01), 0, TAU, true); g.fill();
+    // Band gaps catch the light more strongly.
+    const ps = R * (labelFrac + 0.065), pe = R * 0.948;
+    g.strokeStyle = cg; g.globalAlpha = 0.9; g.lineWidth = Math.max(R / 90, 1);
+    for (let k = 1; k <= 5; k++) { g.beginPath(); g.arc(0, 0, ps + (k * (pe - ps)) / 6, 0, TAU); g.stroke(); }
+    g.globalAlpha = 1;
+    // Rim light.
+    g.strokeStyle = css(lc, strength * 0.5); g.lineWidth = R * 0.012;
+    g.beginPath(); g.arc(0, 0, R * 0.988, -2.6, -1.9); g.stroke();
+    return c;
+  }
+
+  // Rotating: pressing irregularity, run-out etchings, the label with printed marks.
+  function buildRotating(px, labelFrac, labelRGB) {
+    const c = canvasOf(px), g = c.getContext("2d"), R = c.width / 2;
+    g.translate(R, R);
+    const ir = g.createConicGradient(0.4, 0, 0);
+    [[0, "rgba(255,255,255,0.05)"], [0.1, "rgba(0,0,0,0)"], [0.22, "rgba(0,0,0,0.08)"], [0.33, "rgba(0,0,0,0)"], [0.47, "rgba(255,255,255,0.04)"], [0.58, "rgba(0,0,0,0)"], [0.71, "rgba(0,0,0,0.06)"], [0.83, "rgba(0,0,0,0)"], [1, "rgba(255,255,255,0.05)"]]
+      .forEach(([p, col]) => ir.addColorStop(p, col));
+    g.fillStyle = ir;
+    g.beginPath(); g.arc(0, 0, R * 0.948, 0, TAU); g.arc(0, 0, R * (labelFrac + 0.065), 0, TAU, true); g.fill();
+    g.strokeStyle = "rgba(255,255,255,0.24)"; g.lineWidth = Math.max(R * 0.008, 1);
+    const er = R * (labelFrac + 0.033);
+    for (let k = 0; k < 9; k++) { const s = 0.3 + k * 0.09; g.beginPath(); g.arc(0, 0, er, s, s + 0.05); g.stroke(); }
+    g.beginPath(); g.arc(0, 0, er, 3.6, 4.3); g.stroke();
+    const lr = R * labelFrac;
+    const lab = g.createRadialGradient(-lr * 0.3, -lr * 0.3, 0, 0, 0, lr);
+    lab.addColorStop(0, css(labelRGB.map((v) => Math.min(1, v * 1.12)))); lab.addColorStop(1, css(labelRGB.map((v) => v * 0.85)));
+    g.fillStyle = lab; g.beginPath(); g.arc(0, 0, lr, 0, TAU); g.fill();
+    g.strokeStyle = "rgba(255,255,255,0.25)"; g.lineWidth = Math.max(lr / 110, 1);
+    g.beginPath(); g.arc(0, 0, lr * 0.93, 0, TAU); g.stroke();
+    g.lineCap = "round"; g.lineWidth = Math.max(lr / 40, 1.5);
+    g.strokeStyle = "rgba(255,255,255,0.55)"; g.beginPath(); g.arc(0, 0, lr * 0.8, 0.25, 1.2); g.stroke();
+    g.strokeStyle = "rgba(0,0,0,0.3)"; g.beginPath(); g.arc(0, 0, lr * 0.8, 3.4, 3.8); g.stroke();
+    return c;
+  }
+
+  // ---------- Record views ----------
+  // kind: "flat" (now), "turntable" (A), "float" (B). style: "inscribed" | "plain".
+  const views = [];
+  function makeView(host, opts) {
+    const cv = document.createElement("canvas");
+    cv.style.left = opts.x + "px"; cv.style.top = opts.y + "px";
+    cv.style.width = opts.box + "px"; cv.style.height = opts.box + "px";
+    host.appendChild(cv);
+    const view = { cv, ctx: cv.getContext("2d"), tex: null, key: "", ...opts };
+    views.push(view);
+    return view;
+  }
+
+  function texturesFor(v, px) {
+    const pal = palettes[state.track];
+    const key = [px, state.track].join("|");
+    if (v.key === key && v.tex) return v.tex;
+    const gloss = v.kind !== "flat";
+    const sheenTint = v.kind === "float" ? pal.accent.map((c) => 0.55 + c * 0.45) : null;
+    v.tex = {
+      disc: buildDisc(px, v.labelFrac, gloss),
+      sheen: buildSheen(px, v.labelFrac, v.kind === "flat" ? 0.22 : 0.48, sheenTint),
+      rot: buildRotating(px, v.labelFrac, v.style === "plain" ? pal.label : pal.edge),
+    };
+    v.key = key;
+    return v.tex;
+  }
+
+  function drawPlatter(g, cx, cy, R, a) {
+    const Rp = R * 1.075;
+    g.save();
+    g.shadowColor = "rgba(0,0,0,0.6)"; g.shadowBlur = R * 0.22; g.shadowOffsetY = R * 0.07;
+    g.fillStyle = "#1a1b1e"; g.beginPath(); g.arc(cx, cy, Rp, 0, TAU); g.fill();
+    g.restore();
+    const metal = g.createConicGradient(-0.6, cx, cy);
+    [[0, "#8c8f96"], [0.12, "#3a3c41"], [0.3, "#6d7077"], [0.5, "#9b9ea5"], [0.62, "#3b3d42"], [0.8, "#6a6d74"], [1, "#8c8f96"]].forEach(([p, c]) => metal.addColorStop(p, c));
+    g.fillStyle = metal; g.beginPath(); g.arc(cx, cy, Rp, 0, TAU); g.arc(cx, cy, R * 1.005, 0, TAU, true); g.fill();
+    g.save(); g.translate(cx, cy); g.rotate(a);
+    g.fillStyle = "rgba(20,20,22,0.85)";
+    const n = 60, dr = Rp * 0.955, dot = Math.max(R * 0.018, 1);
+    for (let k = 0; k < n; k++) { const t = (k / n) * TAU; g.beginPath(); g.arc(Math.cos(t) * dr, Math.sin(t) * dr, dot, 0, TAU); g.fill(); }
+    g.restore();
+    g.strokeStyle = "rgba(255,255,255,0.35)"; g.lineWidth = 1; g.beginPath(); g.arc(cx, cy, Rp - 0.5, -2.7, -1.6); g.stroke();
+  }
+
+  function drawTonearm(g, W, cx, cy, R, t, dark) {
+    const P = [W * 0.86, W * 0.14];
+    const H = [cx + R * 0.66, cy - R * 0.12];
+    const L = Math.hypot(H[0] - P[0], H[1] - P[1]);
+    const play = Math.atan2(H[1] - P[1], H[0] - P[0]);
+    const ang = play - (1 - t) * 0.42;
+    const hx = P[0] + Math.cos(ang) * L, hy = P[1] + Math.sin(ang) * L;
+    const metal = dark ? "#c9ccd3" : "#8d9097";
+    g.save();
+    g.shadowColor = "rgba(0,0,0,0.45)"; g.shadowBlur = R * 0.08; g.shadowOffsetX = R * 0.03; g.shadowOffsetY = R * 0.05;
+    g.lineCap = "round";
+    g.strokeStyle = dark ? "#2a2b2f" : "#5b5d63"; g.lineWidth = R * 0.11;
+    g.beginPath(); g.moveTo(P[0], P[1]); g.lineTo(P[0] - Math.cos(ang) * L * 0.2, P[1] - Math.sin(ang) * L * 0.2); g.stroke();
+    g.strokeStyle = metal; g.lineWidth = R * 0.045;
+    g.beginPath(); g.moveTo(P[0], P[1]); g.lineTo(hx, hy); g.stroke();
+    g.translate(hx, hy); g.rotate(ang + 0.5);
+    g.fillStyle = dark ? "#26272b" : "#45474d";
+    g.fillRect(-R * 0.06, -R * 0.1, R * 0.12, R * 0.2);
+    g.restore();
+    const base = g.createRadialGradient(P[0] - R * 0.04, P[1] - R * 0.04, 0, P[0], P[1], R * 0.17);
+    base.addColorStop(0, dark ? "#55575d" : "#d9dbe0"); base.addColorStop(1, dark ? "#1e1f23" : "#8e9198");
+    g.fillStyle = base; g.beginPath(); g.arc(P[0], P[1], R * 0.17, 0, TAU); g.fill();
+    g.fillStyle = metal; g.beginPath(); g.arc(P[0], P[1], R * 0.05, 0, TAU); g.fill();
+  }
+
+  function drawInscribed(g, cx, cy, labelR, img) {
+    const side = labelR * 2 * 0.665, x = cx - side / 2, y = cy - side / 2, rad = Math.max(side * 0.06, 2);
+    g.save();
+    g.shadowColor = "rgba(0,0,0,0.35)"; g.shadowBlur = side * 0.06; g.shadowOffsetY = side * 0.02;
+    g.beginPath(); g.roundRect(x, y, side, side, rad); g.fillStyle = "#000"; g.fill();
+    g.restore();
+    g.save(); g.beginPath(); g.roundRect(x, y, side, side, rad); g.clip();
+    g.drawImage(img, x, y, side, side); g.restore();
+  }
+
+  function drawView(v) {
+    const px = Math.round(v.box * state.zoom * DPR);
+    if (v.cv.width !== px) { v.cv.width = px; v.cv.height = px; }
+    const g = v.ctx, W = px;
+    g.clearRect(0, 0, W, W);
+    const R = v.r * W, cx = v.cx * W, cy = v.cy * W;
+    const t = texturesFor(v, Math.round(R * 2));
+    const a = state.angle;
+    if (v.kind === "turntable") drawPlatter(g, cx, cy, R, a);
+    if (v.kind === "float") {
+      g.save(); g.shadowColor = "rgba(0,0,0,0.55)"; g.shadowBlur = R * 0.28; g.shadowOffsetY = R * 0.1;
+      g.fillStyle = "#000"; g.beginPath(); g.arc(cx, cy, R * 0.98, 0, TAU); g.fill(); g.restore();
+    }
+    g.drawImage(t.disc, cx - R, cy - R, R * 2, R * 2);
+    g.save(); g.translate(cx, cy); g.rotate(a); g.drawImage(t.rot, -R, -R, R * 2, R * 2); g.restore();
+    g.save(); g.globalCompositeOperation = "screen"; g.drawImage(t.sheen, cx - R, cy - R, R * 2, R * 2); g.restore();
+    if (v.style === "inscribed") drawInscribed(g, cx, cy, R * v.labelFrac, covers[state.track]);
+    else { g.fillStyle = "#0b0b0d"; g.beginPath(); g.arc(cx, cy, Math.max(R * 0.03, 2), 0, TAU); g.fill(); }
+    if (v.kind === "turntable") drawTonearm(g, W, cx, cy, R, state.arm, !state.light);
+  }
+
+  // ---------- Widget markup ----------
+  const ICON = {
+    prev: '<svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>',
+    play: '<svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg>',
+    pause: '<svg viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>',
+    next: '<svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>',
+  };
+  const btn = (kind, glass) => `<button class="wbtn${glass ? " glass" : ""}" data-act="${kind}" aria-label="${kind === "play" ? "Play or pause" : kind === "next" ? "Next track" : "Previous track"}">${kind === "play" ? (state.playing ? ICON.pause : ICON.play) : ICON[kind]}</button>`;
+
+  function grainURL() {
+    const c = document.createElement("canvas"); c.width = c.height = 128;
+    const g = c.getContext("2d"), img = g.createImageData(128, 128);
+    for (let i = 0; i < img.data.length; i += 4) { const v = Math.random() * 255; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255; }
+    g.putImageData(img, 0, 0);
+    return c.toDataURL();
+  }
+  const GRAIN = grainURL();
+
+  function textCol(left, glass) {
+    return `<div class="textcol" style="left:${left}px">
+      <div class="title" data-f="title"></div><div class="artist" data-f="artist"></div>
+      <div class="status" data-f="status"></div>
+      <div class="ctrls">${btn("prev", glass)}${btn("play", glass)}${btn("next", glass)}</div></div>`;
+  }
+
+  function buildColumn(col) {
+    const dir = col.dataset.dir;
+    const host = col.querySelector(".scaler");
+    host.innerHTML = `
+      <div class="w w-small" data-size="small"><div class="bg"></div><div class="glow"></div><div class="grain"></div></div>
+      <div class="cap">Small</div>
+      <div class="w w-medium" data-size="medium"><div class="bg"></div><div class="glow"></div><div class="grain"></div></div>
+      <div class="cap">Medium</div>`;
+    const small = host.querySelector(".w-small"), medium = host.querySelector(".w-medium");
+    const glass = dir === "art";
+    if (dir === "turntable") {
+      makeView(small, { kind: "turntable", style: "inscribed", labelFrac: 0.6, box: 158, x: 0, y: 0, r: 0.345, cx: 0.44, cy: 0.52 });
+      small.insertAdjacentHTML("beforeend", `<div class="corner" style="left:11px;bottom:11px">${btn("play", false)}</div>`);
+      makeView(medium, { kind: "turntable", style: "inscribed", labelFrac: 0.6, box: 158, x: 0, y: 0, r: 0.345, cx: 0.44, cy: 0.52 });
+      medium.insertAdjacentHTML("beforeend", textCol(170, false));
+    } else {
+      const kind = dir === "now" ? "flat" : "float";
+      makeView(small, { kind, style: "inscribed", labelFrac: 0.6, box: 158, x: 0, y: 0, r: kind === "flat" ? 0.38 : 0.36, cx: 0.5, cy: 0.5 });
+      small.insertAdjacentHTML("beforeend", `<div class="corner" style="right:11px;bottom:11px">${btn("play", glass)}</div>`);
+      makeView(medium, { kind, style: "plain", labelFrac: 0.5, box: 126, x: 16 + 48, y: 16, r: 0.5, cx: 0.5, cy: 0.5 });
+      medium.insertAdjacentHTML("beforeend", `<img class="sleeve" alt="" style="left:16px;top:16px;width:126px;height:126px">` + textCol(204, glass));
+    }
+    col._parts = { dir, small, medium };
+  }
+
+  // ---------- Apply state ----------
+  function paint(col) {
+    const { dir, small, medium } = col._parts;
+    const pal = palettes[state.track], tr = TRACKS[state.track], light = state.light;
+    col.querySelector(".wall").className = "wall " + (light ? "light" : "dark");
+    for (const w of [small, medium]) {
+      const bg = w.querySelector(".bg"), glow = w.querySelector(".glow"), grain = w.querySelector(".grain");
+      let fg = light ? "rgba(17,17,19,0.92)" : "rgba(255,255,255,0.95)";
+      let fg2 = light ? "rgba(17,17,19,0.55)" : "rgba(255,255,255,0.62)";
+      let ctl = light ? "rgba(0,0,0,0.07)" : "rgba(255,255,255,0.14)";
+      grain.style.backgroundImage = "none"; glow.style.background = "none";
+      if (dir === "now") {
+        bg.style.background = css(light ? pal.surfaceLight : pal.surfaceDark);
+      } else if (dir === "turntable") {
+        const warm = css(pal.accent, light ? 0.10 : 0.12);
+        bg.style.background = light
+          ? `linear-gradient(${warm}, ${warm}), repeating-linear-gradient(90deg, rgba(255,255,255,0.18) 0 1px, rgba(0,0,0,0.03) 1px 3px), linear-gradient(160deg, #eceae6, #cfccc6)`
+          : `linear-gradient(${warm}, ${warm}), repeating-linear-gradient(90deg, rgba(255,255,255,0.025) 0 1px, rgba(0,0,0,0.05) 1px 3px), linear-gradient(160deg, #2a2a2e, #121214)`;
+        grain.style.backgroundImage = `url(${GRAIN})`;
+      } else {
+        const m = pal.mesh.map((c) => css(light ? c.light : c.dark));
+        const base = light ? css(pal.mesh[0].light) : css(pal.mesh[0].dark.map((v) => v * 0.45));
+        bg.style.background = `radial-gradient(70% 90% at 12% 10%, ${m[0]} 0%, transparent 70%), radial-gradient(60% 80% at 92% 25%, ${m[1]} 0%, transparent 70%), radial-gradient(80% 70% at 50% 110%, ${m[2]} 0%, transparent 70%), ${base}`;
+        const g = css(pal.accent, light ? 0.55 : 0.75);
+        glow.style.background = w === small
+          ? `radial-gradient(circle at 50% 52%, ${g} 0 30%, transparent 46%)`
+          : `radial-gradient(circle at 34% 50%, ${g} 0 26%, transparent 44%)`;
+        grain.style.backgroundImage = `url(${GRAIN})`;
+        if (!light) { fg2 = "rgba(255,255,255,0.72)"; }
+      }
+      w.style.setProperty("--w-fg", fg); w.style.setProperty("--w-fg2", fg2); w.style.setProperty("--w-ctl", ctl);
+    }
+    const sleeve = medium.querySelector(".sleeve");
+    if (sleeve) sleeve.src = coverURLs[state.track];
+    medium.querySelector('[data-f="title"]').textContent = tr.title;
+    medium.querySelector('[data-f="artist"]').textContent = tr.artist;
+    medium.querySelector('[data-f="status"]').innerHTML = state.playing
+      ? '<span class="bars" aria-hidden="true"><i style="height:5px"></i><i></i><i style="height:7px"></i></span>Playing'
+      : '<svg viewBox="0 0 24 24" width="9" height="9" aria-hidden="true" style="fill:currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>Paused';
+    col.querySelectorAll('[data-act="play"]').forEach((b) => { b.innerHTML = state.playing ? ICON.pause : ICON.play; });
+  }
+
+  function applyZoom(col) {
+    const s = col.querySelector(".scaler");
+    s.style.transform = state.zoom === 1 ? "none" : `scale(${state.zoom})`;
+    s.style.marginBottom = state.zoom === 1 ? "0" : `${(state.zoom - 1) * s.offsetHeight}px`;
+    s.style.marginInline = state.zoom === 1 ? "0" : `${(state.zoom - 1) * 170}px`;
+  }
+
+  const cols = [...document.querySelectorAll(".col")];
+  cols.forEach(buildColumn);
+  const repaint = () => cols.forEach(paint);
+  repaint();
+
+  // ---------- Controls ----------
+  const $ = (id) => document.getElementById(id);
+  function setPlaying(on) { state.playing = on; $("btn-play").setAttribute("aria-pressed", String(on)); $("btn-play").textContent = on ? "Playing" : "Paused"; repaint(); }
+  function step(d) { state.track = (state.track + d + TRACKS.length) % TRACKS.length; repaint(); }
+  $("btn-play").addEventListener("click", () => setPlaying(!state.playing));
+  $("btn-next").addEventListener("click", () => step(1));
+  $("btn-dark").addEventListener("click", () => { state.light = false; $("btn-dark").setAttribute("aria-pressed", "true"); $("btn-light").setAttribute("aria-pressed", "false"); repaint(); });
+  $("btn-light").addEventListener("click", () => { state.light = true; $("btn-light").setAttribute("aria-pressed", "true"); $("btn-dark").setAttribute("aria-pressed", "false"); repaint(); });
+  function setZoom(z) {
+    state.zoom = z;
+    $("btn-z1").setAttribute("aria-pressed", String(z === 1)); $("btn-z2").setAttribute("aria-pressed", String(z === 2));
+    cols.forEach(applyZoom); views.forEach((v) => { v.key = ""; });
+  }
+  $("btn-z1").addEventListener("click", () => setZoom(1));
+  $("btn-z2").addEventListener("click", () => setZoom(2));
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest(".wbtn"); if (!b) return;
+    const act = b.dataset.act;
+    if (act === "play") setPlaying(!state.playing);
+    else step(act === "next" ? 1 : -1);
+  });
+
+  // ---------- Animation: 16⅔ RPM, clock-driven like the widget ----------
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min((now - last) / 1000, 0.1); last = now;
+    if (state.playing && !reduceMotion) state.angle = (state.angle + (dt / 3.6) * TAU) % TAU;
+    const target = state.playing ? 1 : 0;
+    state.arm += (target - state.arm) * Math.min(1, dt * 4);
+    views.forEach(drawView);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
